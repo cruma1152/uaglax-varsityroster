@@ -473,21 +473,27 @@
             .sort-bar-label { font-size: 10px; margin-right: 2px; }
             .stats-bar { gap: 24px; padding: 10px 16px; }
             .stat-value { font-size: 18px; }
-            .roster-section { padding: 10px 4px; }
-            .section-label { padding: 12px 10px 6px; font-size: 13px; }
-            thead th { font-size: 10px; padding: 8px 5px; letter-spacing: 0.5px; }
-            thead th:first-child { padding-left: 8px; width: 30px; }
+            .roster-section { padding: 8px 2px; }
+            .section-label { padding: 10px 8px 4px; font-size: 12px; }
+            thead th { font-size: 9px; padding: 8px 4px; letter-spacing: 0.5px; }
+            thead th:first-child { padding-left: 6px; width: 28px; }
             thead th.grade-col { width: auto; }
-            tbody td { padding: 8px 5px; font-size: 12px; }
-            tbody td:first-child { padding-left: 8px; font-size: 14px; width: 30px; }
-            .player-name { font-size: 13px; }
-            td.grade-col { font-size: 11px; width: auto !important; }
-            .pos-badge { padding: 2px 7px; font-size: 9px; letter-spacing: 0; }
+            tbody td { padding: 8px 4px; font-size: 12px; }
+            tbody td:first-child { padding-left: 6px; font-size: 13px; width: 28px; }
+            .player-name { font-size: 12px; }
+            td.grade-col { font-size: 10px; width: auto !important; }
+            .pos-badge { padding: 2px 6px; font-size: 0; letter-spacing: 0; }
+            .pos-badge::after { font-size: 9px; font-weight: 700; }
+            .pos-attack::after { content: 'ATT'; }
+            .pos-defense::after { content: 'DEF'; }
+            .pos-midfield::after { content: 'MID'; }
+            .pos-goalie::after { content: 'GK'; }
+            td.pos-col { padding: 8px 4px; white-space: nowrap; }
             .coaches-table td:first-child { width: auto; font-size: 11px; }
-            .coaches-table td { padding: 8px 5px; font-size: 12px; }
+            .coaches-table td { padding: 8px 4px; font-size: 11px; }
             table { width: 100%; }
-            td.pos-col { padding: 8px 4px; }
-            .captain-star { font-size: 12px; }
+            .captain-star { font-size: 11px; }
+            .roster-table-wrapper { border-radius: 8px; }
         }
 
         @media print {
@@ -841,30 +847,30 @@ function sortRoster(btn) {
 
 // ===== PLAYER PROFILE DATA =====
 const playerProfiles = {
-    "Ellie King": { number: 5, grade: "Senior", position: "Attack", dad: "Brendan King", mom: "Kelly King", bio: "A four-year varsity player and team captain, Ellie is one of the most dynamic attackers in central Ohio. She earned All-Conference honors as a junior and leads the team in draw controls. Ellie will continue her lacrosse career at the collegiate level next fall." },
-    "Ella Smith": { number: 7, grade: "Senior", position: "Attack", dad: "Brian Smith", mom: "Erin Smith", bio: "Ella brings speed and precision to the attack, known for her quick release and ability to find open teammates. A three-year varsity player, she has been a consistent contributor on offense. Ella is also an honor roll student and active in community service." },
-    "Berkeley Thomas": { number: 10, grade: "Senior", position: "Midfield", dad: "Brett Thomas", mom: "Mindy Thomas", bio: "Berkeley is a captain and one of the hardest-working players on the roster, excelling on both ends of the field as a two-way midfielder. She brings energy and leadership to every practice and game. Berkeley has been a varsity contributor since her sophomore year." },
-    "Bridget Hamilton": { number: 12, grade: "Senior", position: "Defense", dad: "Brad Hamilton", mom: "Peg Hamilton", bio: "A steady and physical defender, Bridget anchors the back line with smart positioning and tough one-on-one play. She earned a starting role as a junior and hasn't looked back. Bridget is also a standout in the classroom with a strong academic record." },
-    "Abigail Stelzer": { number: 13, grade: "Senior", position: "Defense", dad: "John Stelzer", mom: "Elizabeth Stelzer", bio: "Abigail is a captain and defensive leader known for her communication and ability to organize the unit. She has been a varsity starter since her junior year and brings a calming presence in big moments. Abigail plans to study business in college." },
-    "Lauren Burns": { number: 17, grade: "Senior", position: "Defense", dad: "Chris Burns", mom: "Shelly Burns", bio: "Lauren is a versatile defender who can match up against any attacker in the conference. She's known for her footwork and ground ball tenacity. A three-year varsity player, Lauren is also involved in student government at UA." },
-    "Rylan Clark": { number: 18, grade: "Senior", position: "Attack", dad: "Chris Clark", mom: "Kim Clark", bio: "Rylan is a creative attacker with excellent stick skills and vision, consistently creating scoring opportunities for herself and her teammates. She has been a key part of the offense for three seasons. Rylan brings a competitive fire that elevates the entire team." },
-    "Evie Ruma": { number: 20, grade: "Senior", position: "Midfield", dad: "Charles Ruma", mom: "Brooke Ruma", bio: "Evie is a captain and the engine of the midfield, combining speed, endurance, and lacrosse IQ to dominate transitions. A four-year varsity player, she set the pace for the team on both offense and defense. Evie is also a multi-sport athlete competing in field hockey." },
-    "Juliana English": { number: 1, grade: "Junior", position: "Defense", dad: "Steve English", mom: "Danielle English", bio: "Juliana is a talented defender who reads the field exceptionally well and makes smart plays in the defensive half. She stepped into a starting role this year and has quickly become a key part of the back line. Juliana also plays club lacrosse year-round." },
-    "Joni Marshall": { number: 4, grade: "Junior", position: "Midfield", dad: "Buck Marshall", mom: "Jenny Marshall", bio: "Joni is an athletic midfielder who covers a lot of ground and contributes on both ends of the field. She has a strong draw game and transitions the ball quickly. Joni is looking to take on a bigger leadership role heading into her senior season." },
-    "Annabelle Leibowitz": { number: 6, grade: "Junior", position: "Defense", dad: "Eric Leibowitz", mom: "", bio: "Annabelle is a physical and disciplined defender with excellent positioning. She has developed into a reliable starter who takes on the toughest matchups. Annabelle is also an accomplished student who balances academics and athletics with ease." },
-    "Dillon Wiles": { number: 9, grade: "Junior", position: "Attack", dad: "Jamie Wiles", mom: "Cheri Wiles", bio: "Dillon is a crafty attacker with a nose for the goal, using her quickness to beat defenders one-on-one. She has been a scoring threat since joining the varsity squad as a sophomore. Dillon brings a positive energy to the team both on and off the field." },
-    "Jane Iams": { number: 15, grade: "Junior", position: "Defense", dad: "Andy Iams", mom: "Casie Iams", bio: "Jane is a smart and tenacious defender who always seems to be in the right place at the right time. She works well in the team defensive structure and communicates effectively. Jane and her sister Claire both contribute to the varsity roster." },
-    "Claire Iams": { number: 16, grade: "Junior", position: "Midfield", dad: "Andy Iams", mom: "Casie Iams", bio: "Claire is an energetic midfielder who excels in transition play and ground ball situations. She brings a high motor to every game and is developing into a well-rounded two-way player. Claire and her sister Jane make a formidable combo on the Golden Bears roster." },
-    "Tori Maurer": { number: 99, grade: "Junior", position: "Goalie", dad: "Justin Maurer", mom: "Nancy Maurer", bio: "Tori is the starting goalie and one of the most important players on the roster, combining quick reflexes with strong clearing ability. She has anchored the defense since earning the starting job as a sophomore. Tori's leadership in the cage makes everyone around her better." },
-    "Morgan Falor": { number: 8, grade: "Sophomore", position: "Midfield", dad: "Doug Falor", mom: "Barbie Falor", bio: "Morgan is an athletic midfielder who has made an immediate impact on the varsity squad with her speed and work rate. She is developing her stick skills rapidly and contributes on both ends. Morgan and her sister Quinn both play key roles on the team." },
-    "Quinn Falor": { number: 11, grade: "Sophomore", position: "Defense", dad: "Doug Falor", mom: "Barbie Falor", bio: "Quinn is a composed defender with strong fundamentals and a knack for forcing turnovers. She earned varsity time as a freshman and has only gotten better. Quinn brings a quiet confidence and steady play to the defensive unit." },
-    "Gabby Burleson": { number: 14, grade: "Sophomore", position: "Attack", dad: "Chris Burleson", mom: "Lisa Burleson", bio: "Gabby is a dynamic attacker with a quick first step and a powerful shot. She made her mark on varsity as a freshman with several clutch goals. Gabby is poised for a breakout season as she continues to refine her offensive game." },
-    "Paige Winkelvoss": { number: 21, grade: "Sophomore", position: "Attack", dad: "", mom: "Allison Winkelvoss", bio: "Paige is a creative attacker who uses her vision and passing ability to create opportunities for teammates. She earned a varsity roster spot as a freshman and has been building chemistry with the offensive unit. Paige is also a talented student-athlete in the classroom." },
-    "Leighton Backes": { number: 22, grade: "Sophomore", position: "Midfield", dad: "Jeff Backes", mom: "Marissa Backes", bio: "Leighton is a versatile midfielder who brings intensity and athleticism to every shift. She has a strong ground ball game and is becoming a key contributor in transition. Leighton is one of the rising stars on a talented Golden Bears squad." },
-    "Lilly Byrum": { number: 24, grade: "Sophomore", position: "Attack", dad: "Jamie Byrum", mom: "Michelle Byrum", bio: "Lilly is a fast and skilled attacker who creates havoc for opposing defenses with her dodging ability. She showed flashes of brilliance as a freshman and is poised for increased playing time. Lilly's competitiveness and work ethic set her apart." },
-    "Marg Dusseau": { number: 2, grade: "Freshman", position: "Midfield", dad: "Steve Dusseau", mom: "Lindsay Dusseau", bio: "Marg is an exciting freshman midfielder who earned a varsity spot with her athleticism and lacrosse instincts. She has already shown she can compete at the varsity level with her speed and determination. Marg is one to watch as she develops over the next four years." },
-    "Annie King": { number: 3, grade: "Freshman", position: "Midfield", dad: "Brendan King", mom: "Kelly King", bio: "Annie follows in her sister Ellie's footsteps as a talented midfielder with great field vision and stick skills. She earned a varsity roster spot as a freshman and has already contributed in key moments. Annie and Ellie make history as sisters on the same varsity roster." },
-    "McClain Carpenter": { number: 96, grade: "Freshman", position: "Goalie", dad: "Bobby Carpenter", mom: "Cortney Carpenter", bio: "McClain is a fearless freshman goalie who brings natural shot-stopping ability and vocal leadership in the cage. She is learning behind Tori Maurer and developing rapidly. McClain's competitive drive and coachability make her a bright prospect for the program's future." }
+    "Ellie King": { number: 5, grade: "Senior", position: "Attack", dad: "Brendan King", mom: "Kelly King", bio: "" },
+    "Ella Smith": { number: 7, grade: "Senior", position: "Attack", dad: "Brian Smith", mom: "Erin Smith", bio: "" },
+    "Berkeley Thomas": { number: 10, grade: "Senior", position: "Midfield", dad: "Brett Thomas", mom: "Mindy Thomas", bio: "" },
+    "Bridget Hamilton": { number: 12, grade: "Senior", position: "Defense", dad: "Brad Hamilton", mom: "Peg Hamilton", bio: "" },
+    "Abigail Stelzer": { number: 13, grade: "Senior", position: "Defense", dad: "John Stelzer", mom: "Elizabeth Stelzer", bio: "" },
+    "Lauren Burns": { number: 17, grade: "Senior", position: "Defense", dad: "Chris Burns", mom: "Shelly Burns", bio: "" },
+    "Rylan Clark": { number: 18, grade: "Senior", position: "Attack", dad: "Chris Clark", mom: "Kim Clark", bio: "" },
+    "Evie Ruma": { number: 20, grade: "Senior", position: "Midfield", dad: "Charles Ruma", mom: "Brooke Ruma", bio: "" },
+    "Juliana English": { number: 1, grade: "Junior", position: "Defense", dad: "Steve English", mom: "Danielle English", bio: "" },
+    "Joni Marshall": { number: 4, grade: "Junior", position: "Midfield", dad: "Buck Marshall", mom: "Jenny Marshall", bio: "" },
+    "Annabelle Leibowitz": { number: 6, grade: "Junior", position: "Defense", dad: "Eric Leibowitz", mom: "", bio: "" },
+    "Dillon Wiles": { number: 9, grade: "Junior", position: "Attack", dad: "Jamie Wiles", mom: "Cheri Wiles", bio: "" },
+    "Jane Iams": { number: 15, grade: "Junior", position: "Defense", dad: "Andy Iams", mom: "Casie Iams", bio: "" },
+    "Claire Iams": { number: 16, grade: "Junior", position: "Midfield", dad: "Andy Iams", mom: "Casie Iams", bio: "" },
+    "Tori Maurer": { number: 99, grade: "Junior", position: "Goalie", dad: "Justin Maurer", mom: "Nancy Maurer", bio: "" },
+    "Morgan Falor": { number: 8, grade: "Sophomore", position: "Midfield", dad: "Doug Falor", mom: "Barbie Falor", bio: "" },
+    "Quinn Falor": { number: 11, grade: "Sophomore", position: "Defense", dad: "Doug Falor", mom: "Barbie Falor", bio: "" },
+    "Gabby Burleson": { number: 14, grade: "Sophomore", position: "Attack", dad: "Chris Burleson", mom: "Lisa Burleson", bio: "" },
+    "Paige Winkelvoss": { number: 21, grade: "Sophomore", position: "Attack", dad: "", mom: "Allison Winkelvoss", bio: "" },
+    "Leighton Backes": { number: 22, grade: "Sophomore", position: "Midfield", dad: "Jeff Backes", mom: "Marissa Backes", bio: "" },
+    "Lilly Byrum": { number: 24, grade: "Sophomore", position: "Attack", dad: "Jamie Byrum", mom: "Michelle Byrum", bio: "" },
+    "Marg Dusseau": { number: 2, grade: "Freshman", position: "Midfield", dad: "Steve Dusseau", mom: "Lindsay Dusseau", bio: "" },
+    "Annie King": { number: 3, grade: "Freshman", position: "Midfield", dad: "Brendan King", mom: "Kelly King", bio: "" },
+    "McClain Carpenter": { number: 96, grade: "Freshman", position: "Goalie", dad: "Bobby Carpenter", mom: "Cortney Carpenter", bio: "" }
 };
 
 // Generate placeholder headshot SVG (initials on gold circle)
