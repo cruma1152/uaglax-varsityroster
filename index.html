@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { overflow-x: hidden; max-width: 100vw; }
         :root {
             --black: #1a1a1a;
             --gold: #F7C414;
@@ -209,7 +210,8 @@
         .roster-table-wrapper {
             background: var(--white);
             border-radius: 12px;
-            overflow: hidden;
+            overflow-x: auto;
+            overflow-y: hidden;
             box-shadow: 0 4px 24px rgba(0,0,0,0.08);
             border: 1px solid var(--gray-200);
             position: relative;
@@ -479,6 +481,9 @@
             .pos-badge { padding: 3px 10px; font-size: 10px; }
             .coaches-table td:first-child { width: auto; font-size: 11px; }
             td.grade-col { font-size: 12px; }
+            table { min-width: 0; }
+            .player-name { font-size: 13px; }
+            .grade-col { width: auto !important; }
         }
 
         @media print {
