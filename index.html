@@ -369,6 +369,8 @@
             align-items: center;
             cursor: pointer;
             animation: lbFadeIn 0.2s ease-out;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
         }
         .photo-lightbox.active { display: flex; }
         @keyframes lbFadeIn {
@@ -972,7 +974,7 @@ function buildProfileHTML(name) {
     if (p.mom) parents.push(`<strong>Mom:</strong> ${p.mom}`);
     return `<div class="player-profile active" id="active-profile">
         <div class="profile-inner">
-            <img class="profile-photo" src="${makeHeadshot(name)}" alt="${name}" onclick="openLightbox('${name}', this.src)">
+            <img class="profile-photo" src="${makeHeadshot(name)}" alt="${name}" data-player="${name}">
             <div class="profile-info">
                 <div class="profile-name">${name}</div>
                 <div class="profile-number">#${p.number} · ${p.grade} · ${p.position}</div>
@@ -1031,18 +1033,40 @@ lightboxDiv.className = 'photo-lightbox';
 lightboxDiv.innerHTML = '<img src="" alt=""><div class="lb-name"></div>';
 document.body.appendChild(lightboxDiv);
 
-function openLightbox(name, src) {
-    // Don't open lightbox for SVG placeholders
-    if (src.startsWith('data:')) return;
+// Use event delegation on document for profile photo taps (works on iOS)
+document.addEventListener('click', function(e) {
+    const photo = e.target.closest('.profile-photo');
+    if (!photo) return;
+    const src = photo.src;
+    const name = photo.getAttribute('data-player') || photo.alt;
+    // Don't open for SVG placeholders
+    if (!src || src.startsWith('data:')) return;
+    e.stopPropagation();
+    e.preventDefault();
     const lbImg = lightboxDiv.querySelector('img');
     const lbName = lightboxDiv.querySelector('.lb-name');
     lbImg.src = src;
     lbImg.alt = name;
     lbName.textContent = name;
     lightboxDiv.classList.add('active');
-}
+}, true);  // Use capture phase to intercept before other handlers
 
-lightboxDiv.addEventListener('click', function() {
+// Close lightbox on tap/click (with small delay to prevent instant close on iOS)
+let lightboxOpenTime = 0;
+const origAdd = lightboxDiv.classList.add.bind(lightboxDiv.classList);
+const origClassList = lightboxDiv.classList;
+new MutationObserver(function() {
+    if (lightboxDiv.classList.contains('active')) lightboxOpenTime = Date.now();
+}).observe(lightboxDiv, { attributes: true, attributeFilter: ['class'] });
+
+lightboxDiv.addEventListener('click', function(e) {
+    if (Date.now() - lightboxOpenTime < 300) return; // Ignore taps within 300ms of opening
+    lightboxDiv.classList.remove('active');
+});
+
+// Also handle touchend for iOS
+lightboxDiv.addEventListener('touchend', function(e) {
+    if (Date.now() - lightboxOpenTime < 300) return;
     lightboxDiv.classList.remove('active');
 });
 
