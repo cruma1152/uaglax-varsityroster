@@ -355,6 +355,49 @@
             border: 3px solid var(--gold);
             flex-shrink: 0;
             background: var(--gray-200);
+            cursor: pointer;
+            transition: transform 0.15s ease;
+        }
+        .profile-photo:hover { transform: scale(1.05); }
+        .photo-lightbox {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            animation: lbFadeIn 0.2s ease-out;
+        }
+        .photo-lightbox.active { display: flex; }
+        @keyframes lbFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .photo-lightbox img {
+            max-width: 85vw;
+            max-height: 85vh;
+            border-radius: 12px;
+            border: 4px solid var(--gold);
+            object-fit: cover;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.4);
+            animation: lbZoomIn 0.25s ease-out;
+        }
+        @keyframes lbZoomIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .photo-lightbox .lb-name {
+            position: absolute;
+            bottom: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Oswald', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.6);
         }
         .profile-info { flex: 1; min-width: 0; }
         .profile-name {
@@ -929,7 +972,7 @@ function buildProfileHTML(name) {
     if (p.mom) parents.push(`<strong>Mom:</strong> ${p.mom}`);
     return `<div class="player-profile active" id="active-profile">
         <div class="profile-inner">
-            <img class="profile-photo" src="${makeHeadshot(name)}" alt="${name}">
+            <img class="profile-photo" src="${makeHeadshot(name)}" alt="${name}" onclick="openLightbox('${name}', this.src)">
             <div class="profile-info">
                 <div class="profile-name">${name}</div>
                 <div class="profile-number">#${p.number} · ${p.grade} · ${p.position}</div>
@@ -979,6 +1022,33 @@ document.addEventListener('click', function(e) {
         document.querySelectorAll('.player-name.profile-open').forEach(el => el.classList.remove('profile-open'));
         openProfileRow = null;
     }
+});
+
+// ===== PHOTO LIGHTBOX =====
+// Create lightbox element
+const lightboxDiv = document.createElement('div');
+lightboxDiv.className = 'photo-lightbox';
+lightboxDiv.innerHTML = '<img src="" alt=""><div class="lb-name"></div>';
+document.body.appendChild(lightboxDiv);
+
+function openLightbox(name, src) {
+    // Don't open lightbox for SVG placeholders
+    if (src.startsWith('data:')) return;
+    const lbImg = lightboxDiv.querySelector('img');
+    const lbName = lightboxDiv.querySelector('.lb-name');
+    lbImg.src = src;
+    lbImg.alt = name;
+    lbName.textContent = name;
+    lightboxDiv.classList.add('active');
+}
+
+lightboxDiv.addEventListener('click', function() {
+    lightboxDiv.classList.remove('active');
+});
+
+// Close lightbox on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') lightboxDiv.classList.remove('active');
 });
 
 // Apply default sort (by number, ascending) on load
