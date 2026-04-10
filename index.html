@@ -895,8 +895,8 @@ const playerPhotos = {
     10: "10 - Berkeley Thomas.jpg",
     11: "11 - Quinn Falor.jpg",
     12: "12 - Bridget Hamilton.jpg",
-    13: "13 - Abigale Stelzer.jpg",
-    14: "14 - Gabby Burelson.jpg",
+    13: "13 - Abigail Stelzer.jpg",
+    14: "14 - Gabby Burleson.jpg",
     15: "15 - Jane Iams.jpg",
     16: "16 - Claire Iams.jpg",
     17: "17 - Lauren Burns.jpg",
@@ -914,7 +914,7 @@ const playerPhotos = {
 function makeHeadshot(name) {
     const p = playerProfiles[name];
     if (p && playerPhotos[p.number]) {
-        return `Varirsity Headshots/${playerPhotos[p.number]}`;
+        return `Varsity Headshots/thumbs/${playerPhotos[p.number]}`;
     }
     const initials = name.split(' ').map(n => n[0]).join('');
     return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><circle cx="100" cy="100" r="100" fill="#F7C414"/><text x="100" y="112" text-anchor="middle" font-family="Arial,sans-serif" font-size="64" font-weight="bold" fill="#1a1a1a">${initials}</text></svg>`)}`;
