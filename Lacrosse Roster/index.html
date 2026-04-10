@@ -351,6 +351,7 @@
             height: 100px;
             border-radius: 50%;
             object-fit: cover;
+            object-position: top center;
             border: 3px solid var(--gold);
             flex-shrink: 0;
             background: var(--gray-200);
@@ -880,8 +881,41 @@ const playerProfiles = {
     "McClain Carpenter": { number: 96, grade: "Freshman", position: "Goalie", dad: "Bobby Carpenter", mom: "Cortney Carpenter", bio: "" }
 };
 
-// Generate placeholder headshot SVG (initials on gold circle)
+// Player headshot photo mapping (number → filename)
+const playerPhotos = {
+    1: "1 - Juliana English.jpg",
+    2: "2 - Marg Dusseau.jpg",
+    3: "3 - Annie King.jpg",
+    4: "4 - Joni Marshall.jpg",
+    5: "5 - Ellie King.jpg",
+    6: "6 - Annabelle Leibowitz.jpg",
+    7: "7 - Ella Smith.jpg",
+    8: "8 - Morgan Falor.jpg",
+    9: "9 - Dillon Wiles.jpg",
+    10: "10 - Berkeley Thomas.jpg",
+    11: "11 - Quinn Falor.jpg",
+    12: "12 - Bridget Hamilton.jpg",
+    13: "13 - Abigail Stelzer.jpg",
+    14: "14 - Gabby Burleson.jpg",
+    15: "15 - Jane Iams.jpg",
+    16: "16 - Claire Iams.jpg",
+    17: "17 - Lauren Burns.jpg",
+    18: "18 - Rylan Clark.jpg",
+    20: "20 - Evie Ruma.jpg",
+    21: "21 - Paige Winkelvoss.jpg",
+    22: "22 - Leighton Backes.jpg",
+    24: "24 - Lilly Byrum.jpg",
+    25: "25 - Mia Younkin.jpg",
+    96: "96 - McClain Carpenter.jpg",
+    99: "99 - Tori Maurer.jpg"
+};
+
+// Get headshot: real photo if available, fallback to SVG initials
 function makeHeadshot(name) {
+    const p = playerProfiles[name];
+    if (p && playerPhotos[p.number]) {
+        return `Varsity Headshots/thumbs/${playerPhotos[p.number]}`;
+    }
     const initials = name.split(' ').map(n => n[0]).join('');
     return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><circle cx="100" cy="100" r="100" fill="#F7C414"/><text x="100" y="112" text-anchor="middle" font-family="Arial,sans-serif" font-size="64" font-weight="bold" fill="#1a1a1a">${initials}</text></svg>`)}`;
 }
