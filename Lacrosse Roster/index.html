@@ -754,6 +754,64 @@
             padding: 28px 12px; text-align: center;
             color: var(--gray-500); font-size: 13px;
         }
+
+        /* ----- Happy Hour pills on each game row ----- */
+        .game-hh {
+            grid-column: 3 / 5;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .hh-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: #FFFCF0;
+            border: 1px solid rgba(247, 196, 20, 0.35);
+            border-radius: 3px;
+            font-size: 11.5px;
+            line-height: 1.3;
+            color: var(--gray-700);
+            text-decoration: none;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        a.hh-pill:hover {
+            background: var(--gold-bg);
+            border-color: var(--gold);
+        }
+        a.hh-pill .hh-venue { text-decoration: underline; text-decoration-color: rgba(212,163,14,0.35); text-underline-offset: 2px; }
+        a.hh-pill:hover .hh-venue { text-decoration-color: var(--gold-dark); }
+        .hh-icon {
+            font-size: 12px;
+            line-height: 1;
+            filter: saturate(1.05);
+        }
+        .hh-label {
+            font-family: 'Oswald', sans-serif;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: var(--gold-dark);
+            padding: 1px 5px;
+            background: var(--gold-bg);
+            border-radius: 2px;
+        }
+        .hh-venue {
+            font-weight: 600;
+            color: var(--black);
+        }
+        .hh-time {
+            color: var(--gray-500);
+            font-size: 11px;
+        }
+        .hh-sep {
+            color: var(--gray-200);
+            margin: 0 1px;
+        }
+
         @media (max-width: 640px) {
             .schedule-section { padding: 24px 14px 20px; }
             .schedule-top {
@@ -769,6 +827,12 @@
             .game-date { font-size: 14px; }
             .game-opponent { font-size: 13.5px; }
             .result-score { font-size: 14px; }
+            .game-hh { gap: 5px; margin-top: 5px; }
+            .hh-pill {
+                font-size: 11px; padding: 3px 8px;
+                max-width: 100%; overflow: hidden;
+            }
+            .hh-time { font-size: 10.5px; }
         }
         @media print {
             .game-row { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -1465,6 +1529,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ? '<div class="game-meta-line">' + metaBits.join('<span class="meta-sep">·</span>') + '</div>'
             : '';
 
+        const happyHour = happyHourHtml(g);
+
         const rowClass = 'game-row ' + state + (isNext ? ' next' : '');
 
         return '<div class="' + rowClass + '">' +
@@ -1477,7 +1543,73 @@ document.addEventListener('DOMContentLoaded', () => {
                     metaLine +
                 '</div>' +
                 '<div class="game-right">' + right + '</div>' +
+                happyHour +
             '</div>';
+    }
+
+    // ----- Happy Hour rendering -----
+    // Collapses to a single pill when pre and post are at the same venue
+    // (case-insensitive match). Makes the venue a maps link when an address
+    // is provided. Returns '' when there's no happy hour info to show.
+    function happyHourHtml(g) {
+        const pre = {
+            venue: (g.preVenue || '').trim(),
+            time: (g.preTime || '').trim(),
+            address: (g.preAddress || '').trim()
+        };
+        const post = {
+            venue: (g.postVenue || '').trim(),
+            time: (g.postTime || '').trim(),
+            address: (g.postAddress || '').trim()
+        };
+        const hasPre = !!(pre.venue || pre.time);
+        const hasPost = !!(post.venue || post.time);
+        if (!hasPre && !hasPost) return '';
+
+        const sameVenue = hasPre && hasPost &&
+            pre.venue && post.venue &&
+            pre.venue.toLowerCase() === post.venue.toLowerCase();
+
+        let pills = '';
+
+        if (sameVenue) {
+            // One collapsed pill: venue · PRE time · POST time
+            // Use the first address that's populated (prefer pre, fallback post).
+            const addr = pre.address || post.address;
+            const href = mapsHref(pre.venue, addr);
+            const inner =
+                '<span class="hh-icon" aria-hidden="true">\uD83C\uDF7B</span>' +
+                '<span class="hh-venue">' + escapeHtml(pre.venue) + '</span>' +
+                (pre.time  ? '<span class="hh-sep">·</span><span class="hh-label">Pre</span><span class="hh-time">' + escapeHtml(pre.time) + '</span>' : '') +
+                (post.time ? '<span class="hh-sep">·</span><span class="hh-label">Post</span><span class="hh-time">' + escapeHtml(post.time) + '</span>' : '');
+            pills += href
+                ? '<a class="hh-pill" href="' + href + '" target="_blank" rel="noopener">' + inner + '</a>'
+                : '<span class="hh-pill">' + inner + '</span>';
+        } else {
+            if (hasPre)  pills += singlePill('Pre',  pre);
+            if (hasPost) pills += singlePill('Post', post);
+        }
+
+        return '<div class="game-hh">' + pills + '</div>';
+    }
+
+    function singlePill(label, h) {
+        const href = mapsHref(h.venue, h.address);
+        const inner =
+            '<span class="hh-icon" aria-hidden="true">\uD83C\uDF7B</span>' +
+            '<span class="hh-label">' + label + '</span>' +
+            (h.venue ? '<span class="hh-venue">' + escapeHtml(h.venue) + '</span>' : '') +
+            (h.time  ? '<span class="hh-time">' + escapeHtml(h.time)  + '</span>' : '');
+        return href
+            ? '<a class="hh-pill" href="' + href + '" target="_blank" rel="noopener">' + inner + '</a>'
+            : '<span class="hh-pill">' + inner + '</span>';
+    }
+
+    // Return a maps URL if we have enough to search, otherwise null.
+    function mapsHref(venue, address) {
+        const q = [venue, address].filter(Boolean).join(' ');
+        if (!q) return null;
+        return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
     }
 
     function renderError() {
