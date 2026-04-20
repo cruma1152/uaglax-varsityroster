@@ -1548,9 +1548,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ----- Happy Hour rendering -----
-    // Collapses to a single pill when pre and post are at the same venue
-    // (case-insensitive match). Makes the venue a maps link when an address
-    // is provided. Returns '' when there's no happy hour info to show.
+    // Always renders Pre and Post as separate pills (Charles preference).
+    // Makes the venue a maps link when an address is provided.
+    // Returns '' when there's no happy hour info to show.
     function happyHourHtml(g) {
         const pre = {
             venue: (g.preVenue || '').trim(),
@@ -1566,29 +1566,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const hasPost = !!(post.venue || post.time);
         if (!hasPre && !hasPost) return '';
 
-        const sameVenue = hasPre && hasPost &&
-            pre.venue && post.venue &&
-            pre.venue.toLowerCase() === post.venue.toLowerCase();
-
         let pills = '';
-
-        if (sameVenue) {
-            // One collapsed pill: venue · PRE time · POST time
-            // Use the first address that's populated (prefer pre, fallback post).
-            const addr = pre.address || post.address;
-            const href = mapsHref(pre.venue, addr);
-            const inner =
-                '<span class="hh-icon" aria-hidden="true">\uD83C\uDF7B</span>' +
-                '<span class="hh-venue">' + escapeHtml(pre.venue) + '</span>' +
-                (pre.time  ? '<span class="hh-sep">·</span><span class="hh-label">Pre</span><span class="hh-time">' + escapeHtml(pre.time) + '</span>' : '') +
-                (post.time ? '<span class="hh-sep">·</span><span class="hh-label">Post</span><span class="hh-time">' + escapeHtml(post.time) + '</span>' : '');
-            pills += href
-                ? '<a class="hh-pill" href="' + href + '" target="_blank" rel="noopener">' + inner + '</a>'
-                : '<span class="hh-pill">' + inner + '</span>';
-        } else {
-            if (hasPre)  pills += singlePill('Pre',  pre);
-            if (hasPost) pills += singlePill('Post', post);
-        }
+        if (hasPre)  pills += singlePill('Pre',  pre);
+        if (hasPost) pills += singlePill('Post', post);
 
         return '<div class="game-hh">' + pills + '</div>';
     }
