@@ -9,6 +9,7 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { overflow-x: hidden; max-width: 100vw; }
+        html { scroll-behavior: smooth; }
         :root {
             --black: #1a1a1a;
             --gold: #F7C414;
@@ -215,6 +216,38 @@
             margin-left: 4px;
             opacity: 0.7;
         }
+        /* Quick-nav jump button — lives at the end of the sort bar */
+        .jump-btn {
+            font-family: 'Oswald', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            padding: 6px 14px 6px 16px;
+            border-radius: 20px;
+            border: 1.5px solid var(--gold);
+            background: var(--gold);
+            color: var(--black);
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 12px;
+            transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+            white-space: nowrap;
+        }
+        .jump-btn:hover {
+            background: var(--gold-light);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(247,196,20,0.35);
+        }
+        .jump-btn .jump-arrow {
+            font-size: 14px;
+            line-height: 1;
+            transition: transform 0.15s;
+        }
+        .jump-btn:hover .jump-arrow { transform: translateY(2px); }
 
         /* ===== ROSTER TABLE ===== */
         .roster-section {
@@ -532,6 +565,12 @@
             .sort-bar { padding: 8px 12px; gap: 6px; }
             .sort-btn { font-size: 11px; padding: 5px 12px; }
             .sort-bar-label { font-size: 10px; margin-right: 2px; }
+            .jump-btn {
+                font-size: 11px; padding: 5px 12px;
+                margin-left: 0; margin-top: 6px;
+                flex-basis: 100%;
+                justify-content: center;
+            }
             .stats-bar { gap: 24px; padding: 10px 16px; }
             .stat-value { font-size: 18px; }
             .roster-section { padding: 8px 2px; }
@@ -795,6 +834,7 @@
     <button class="sort-btn" data-sort="name" data-dir="asc" onclick="sortRoster(this)">Name</button>
     <button class="sort-btn" data-sort="grade" data-dir="asc" onclick="sortRoster(this)">Grade</button>
     <button class="sort-btn" data-sort="position" data-dir="asc" onclick="sortRoster(this)">Position</button>
+    <a class="jump-btn" href="#schedule">Schedule &amp; Results <span class="jump-arrow">&darr;</span></a>
 </div>
 
 <!-- ===== ROSTER TABLE ===== -->
@@ -1006,7 +1046,7 @@
 </div>
 
 <!-- ===== SCHEDULE & RESULTS ===== -->
-<div class="schedule-section">
+<div class="schedule-section" id="schedule">
     <div class="schedule-top">
         <div class="season-head">
             <div class="season-eyebrow">2026 Season</div>
