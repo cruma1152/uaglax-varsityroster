@@ -607,11 +607,19 @@
         }
 
         /* ===== SCHEDULE & RESULTS ===== */
+        /* Outer section mirrors .roster-section — same max-width and outer padding */
         .schedule-section {
             max-width: 960px;
             margin: 0 auto 40px;
-            padding: 36px 24px 28px;
+            padding: 24px;
+        }
+        /* Inner card mirrors .roster-table-wrapper — white card with border, shadow, rounded corners */
+        .schedule-section > .schedule-card {
             background: var(--white);
+            border-radius: 12px;
+            border: 1px solid var(--gray-200);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            padding: 32px 28px 24px;
         }
         .schedule-top {
             display: grid;
@@ -813,7 +821,18 @@
         }
 
         @media (max-width: 640px) {
-            .schedule-section { padding: 24px 14px 20px; }
+            .schedule-section { padding: 14px 12px 20px; }
+            .schedule-section > .schedule-card { padding: 22px 16px 18px; border-radius: 10px; }
+            /* On mobile, stack the notes tag and location onto separate lines so
+               every game row has the same visual structure regardless of notes. */
+            .game-meta-line {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 2px;
+            }
+            .game-meta-line .meta-sep { display: none; }
+            .game-meta-line .game-tag { align-self: flex-start; }
             .schedule-top {
                 grid-template-columns: 1fr; gap: 14px; align-items: start;
             }
@@ -1111,18 +1130,20 @@
 
 <!-- ===== SCHEDULE & RESULTS ===== -->
 <div class="schedule-section" id="schedule">
-    <div class="schedule-top">
-        <div class="season-head">
-            <div class="season-eyebrow">2026 Season</div>
-            <div class="season-title-line">
-                <span class="season-title">Schedule &amp; Results</span>
-                <span class="season-record" id="seasonRecord">—</span>
+    <div class="schedule-card">
+        <div class="schedule-top">
+            <div class="season-head">
+                <div class="season-eyebrow">2026 Season</div>
+                <div class="season-title-line">
+                    <span class="season-title">Schedule &amp; Results</span>
+                    <span class="season-record" id="seasonRecord">—</span>
+                </div>
             </div>
+            <div class="next-game" id="nextGame" hidden></div>
         </div>
-        <div class="next-game" id="nextGame" hidden></div>
-    </div>
-    <div class="games-list" id="gamesList">
-        <div class="schedule-empty">Loading schedule&hellip;</div>
+        <div class="games-list" id="gamesList">
+            <div class="schedule-empty">Loading schedule&hellip;</div>
+        </div>
     </div>
 </div>
 
