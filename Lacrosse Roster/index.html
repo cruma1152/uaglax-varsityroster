@@ -738,6 +738,38 @@
         .result-badge.w { background: var(--gold); color: var(--black); }
         .result-badge.l { background: var(--gray-500); color: white; }
         .result-badge.t { background: var(--gray-700); color: white; }
+        /* Live game — non-final game with a running score */
+        .result-live {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 10px 3px 8px;
+            background: #C22A2A;
+            color: white;
+            border-radius: 4px;
+            font-family: 'Oswald', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+        }
+        .result-live .live-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: white;
+            animation: livePulse 1.2s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+        @keyframes livePulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%      { opacity: 0.45; transform: scale(0.72); }
+        }
+        /* A live game row gets a soft red tint + left accent to stand out */
+        .game-row.upcoming.is-live {
+            background: linear-gradient(90deg, rgba(194,42,42,0.06) 0%, rgba(194,42,42,0) 100%);
+            border-left: 3px solid #C22A2A;
+            padding-left: 9px;
+        }
         .result-score {
             font-size: 15px; font-weight: 600; color: var(--black);
             letter-spacing: 0.5px; font-variant-numeric: tabular-nums;
@@ -1468,14 +1500,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return String(a.date || '').localeCompare(String(b.date || ''));
         });
 
+        // Three states driven by the Final checkbox:
+        //   - final: true                        → Results section, W/L/T badge
+        //   - final: false + has score           → Upcoming section, LIVE badge + live score
+        //   - final: false + no score            → Upcoming section, time/TBD
         const played = [];
         const upcoming = [];
         games.forEach(function (g) {
-            const hasScore = typeof g.ourScore === 'number' && typeof g.oppScore === 'number';
-            if (hasScore) played.push(g); else upcoming.push(g);
+            if (g.final === true) played.push(g); else upcoming.push(g);
         });
 
-        // Compute record
+        // Compute record — only finalized games count
         let wins = 0, losses = 0, ties = 0;
         played.forEach(function (g) {
             if (g.ourScore > g.oppScore) wins++;
@@ -1529,13 +1564,24 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (g.homeAway === 'Away')    { haClass = 'away';    haLetter = 'A'; }
         else if (g.homeAway === 'Neutral') { haClass = 'neutral'; haLetter = 'N'; }
 
-        // Right side: score for played, time for upcoming
+        // Right side:
+        //   - played (Final checked)              → W/L/T badge + final score
+        //   - upcoming with score (LIVE)          → LIVE pill + running score
+        //   - upcoming with no score              → time / TBD
+        const hasScore = typeof g.ourScore === 'number' && typeof g.oppScore === 'number';
+        const isLive = state === 'upcoming' && hasScore;
         let right;
         if (state === 'played') {
             const result = g.ourScore > g.oppScore ? 'w' : (g.ourScore < g.oppScore ? 'l' : 't');
             right =
                 '<div class="game-result">' +
                     '<span class="result-badge ' + result + '">' + result.toUpperCase() + '</span>' +
+                    '<span class="result-score">' + g.ourScore + '\u2013' + g.oppScore + '</span>' +
+                '</div>';
+        } else if (isLive) {
+            right =
+                '<div class="game-result">' +
+                    '<span class="result-live"><span class="live-dot"></span>LIVE</span>' +
                     '<span class="result-score">' + g.ourScore + '\u2013' + g.oppScore + '</span>' +
                 '</div>';
         } else {
@@ -1552,7 +1598,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const happyHour = happyHourHtml(g);
 
-        const rowClass = 'game-row ' + state + (isNext ? ' next' : '');
+        const rowClass = 'game-row ' + state + (isLive ? ' is-live' : (isNext ? ' next' : ''));
 
         return '<div class="' + rowClass + '">' +
                 '<div class="game-date">' + dateDisplay +
