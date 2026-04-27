@@ -891,12 +891,24 @@
             .game-date { font-size: 14px; }
             .game-opponent { font-size: 13.5px; }
             .result-score { font-size: 14px; }
-            .game-hh { gap: 5px; margin-top: 5px; }
+            /* Stack pre/post pills on mobile so each gets the full row width.
+               Pills become block-level flex containers with wrap so content
+               (venue + time) wraps cleanly instead of being clipped on the right. */
+            .game-hh {
+                gap: 5px; margin-top: 5px;
+                flex-direction: column;
+                align-items: stretch;
+            }
             .hh-pill {
                 font-size: 11px; padding: 3px 8px;
-                max-width: 100%; overflow: hidden;
+                display: flex;
+                flex-wrap: wrap;
+                max-width: 100%;
+                overflow: visible;
+                row-gap: 2px;
             }
-            .hh-time { font-size: 10.5px; }
+            .hh-venue { overflow-wrap: break-word; word-break: break-word; min-width: 0; }
+            .hh-time { font-size: 10.5px; margin-left: auto; }
         }
         @media print {
             .game-row { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
