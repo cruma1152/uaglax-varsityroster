@@ -1213,9 +1213,96 @@
         }
         .score-pin-actions .btn-confirm { background: var(--black); color: var(--gold); }
         .score-pin-actions .btn-confirm:hover { background: var(--gray-900); }
+
+        /* ===== LIVE NOW STICKY BANNER ===== */
+        /* Shown at the top of the page when any game is in progress (non-final
+           with at least one score). Sticky so it stays visible while parents
+           scroll the roster. Tap to jump to that game in the schedule. */
+        .live-now {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 20px;
+            background: var(--black);
+            color: var(--white);
+            text-decoration: none;
+            border-bottom: 3px solid var(--gold);
+            font-family: 'Oswald', sans-serif;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            transition: background 0.15s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .live-now[hidden] { display: none; }
+        .live-now:hover, .live-now:active { background: var(--gray-900); }
+        .live-now-pulse {
+            width: 11px; height: 11px; border-radius: 50%;
+            background: #ff3b30;
+            box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7);
+            animation: livePulse 1.4s infinite;
+            flex-shrink: 0;
+        }
+        @keyframes livePulse {
+            0%   { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
+            70%  { box-shadow: 0 0 0 10px rgba(255, 59, 48, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
+        }
+        .live-now-label {
+            font-size: 11px; font-weight: 700;
+            letter-spacing: 2.5px;
+            color: #ff3b30;
+            flex-shrink: 0;
+        }
+        .live-now-matchup {
+            flex: 1; min-width: 0;
+            font-size: 14px; font-weight: 600;
+            letter-spacing: 0.5px;
+            color: rgba(255,255,255,0.9);
+            text-transform: uppercase;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .live-now-score {
+            font-size: 22px; font-weight: 700;
+            color: var(--gold);
+            letter-spacing: 1.5px;
+            flex-shrink: 0;
+        }
+        .live-now-arrow {
+            color: var(--gold);
+            font-size: 16px;
+            opacity: 0.7;
+            flex-shrink: 0;
+        }
+        @media (max-width: 600px) {
+            .live-now { padding: 8px 14px; gap: 10px; }
+            .live-now-label { font-size: 10px; letter-spacing: 2px; }
+            .live-now-matchup { font-size: 12px; }
+            .live-now-score { font-size: 20px; letter-spacing: 1px; }
+            .live-now-arrow { font-size: 14px; }
+        }
+        @media print {
+            .live-now { display: none !important; }
+        }
+
+        /* Briefly highlight a game row when the banner scrolls to it */
+        .game-row.flash-target {
+            background: var(--gold-bg) !important;
+            transition: background 1.2s ease-out;
+        }
     </style>
 </head>
 <body>
+
+<!-- Sticky LIVE NOW banner — populated/shown by render() in the schedule script
+     when any non-final game has a score. Tap to smooth-scroll to that game. -->
+<a class="live-now" id="liveNow" href="#schedule" hidden>
+    <span class="live-now-pulse" aria-hidden="true"></span>
+    <span class="live-now-label">LIVE</span>
+    <span class="live-now-matchup" id="liveNowMatchup"></span>
+    <span class="live-now-score" id="liveNowScore"></span>
+    <span class="live-now-arrow" aria-hidden="true">&rsaquo;</span>
+</a>
 
 <!-- ===== HERO ===== -->
 <div class="hero">
@@ -1915,6 +2002,9 @@ document.addEventListener('DOMContentLoaded', () => {
             ? (wins + '-' + losses + (ties > 0 ? '-' + ties : ''))
             : '—';
 
+        // Sticky LIVE NOW banner at the top of the page
+        updateLiveBanner(games);
+
         // Next game callout
         const nextEl = document.getElementById('nextGame');
         const next = upcoming[0];
@@ -2244,6 +2334,41 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     /* =================================================================
+     *  LIVE NOW BANNER
+     *  Show / populate the sticky banner at the top of the page whenever
+     *  any non-final game has a score. Tap-target is wired in wireAdminUi
+     *  to smooth-scroll to that row in the schedule.
+     * ================================================================= */
+    function updateLiveBanner(games) {
+        const banner   = document.getElementById('liveNow');
+        const matchup  = document.getElementById('liveNowMatchup');
+        const scoreEl  = document.getElementById('liveNowScore');
+        if (!banner || !matchup || !scoreEl) return;
+
+        // First non-final game with a score wins. Order doesn't really matter
+        // since there shouldn't be two live games at once, but if there were
+        // we'd show the earliest one.
+        const liveGame = (games || []).find(function (g) {
+            return g.final !== true &&
+                   (typeof g.ourScore === 'number' || typeof g.oppScore === 'number');
+        });
+
+        if (!liveGame) {
+            banner.hidden = true;
+            banner.removeAttribute('data-target-id');
+            return;
+        }
+
+        const prefix = liveGame.homeAway === 'Away' ? 'at ' : 'vs ';
+        matchup.textContent = 'UA ' + prefix + (liveGame.opponent || '');
+        const o = typeof liveGame.ourScore === 'number' ? liveGame.ourScore : 0;
+        const p = typeof liveGame.oppScore === 'number' ? liveGame.oppScore : 0;
+        scoreEl.textContent = o + ' – ' + p;
+        banner.hidden = false;
+        banner.setAttribute('data-target-id', liveGame.id || '');
+    }
+
+    /* =================================================================
      *  LIVE POLLING
      *  When a non-final game has a score, refetch the schedule every 30s
      *  so parents see the score climb without reloading. Stops itself
@@ -2337,6 +2462,24 @@ document.addEventListener('DOMContentLoaded', () => {
             forgetPin();
             setEditMode(false);
         });
+
+        // LIVE NOW banner — smooth-scroll to the live game's row in the
+        // schedule and briefly flash it gold so the user sees where it
+        // landed. Falls back to the default href="#schedule" anchor jump
+        // if the row isn't on the page yet.
+        const liveBanner = document.getElementById('liveNow');
+        if (liveBanner) {
+            liveBanner.addEventListener('click', function (e) {
+                const targetId = liveBanner.getAttribute('data-target-id');
+                if (!targetId) return;  // no live game yet — let the anchor work
+                const row = document.querySelector('.game-row[data-game-id="' + targetId + '"]');
+                if (!row) return;
+                e.preventDefault();
+                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                row.classList.add('flash-target');
+                setTimeout(function () { row.classList.remove('flash-target'); }, 1500);
+            });
+        }
     }
 
     // Kick off after DOM is ready
