@@ -2,7 +2,7 @@
 // Strategy: network-first for HTML (so roster edits show up without waiting),
 // cache-first for icons/images/fonts.
 // Bump CACHE_VERSION when you deploy breaking asset changes.
-const CACHE_VERSION = 'uaglax-v3';
+const CACHE_VERSION = 'uaglax-v4';
 const SHELL = [
   './',
   './index.html',
