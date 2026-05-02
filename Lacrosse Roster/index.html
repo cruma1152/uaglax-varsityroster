@@ -1222,25 +1222,33 @@
             display: flex;
             align-items: center;
             gap: 14px;
-            padding: 10px 20px;
+            /* Padding-top includes env(safe-area-inset-top) so the LIVE label /
+               score sit just below the iOS status bar, while the banner's
+               black background fills the area behind it. Desktop fallback: 0px. */
+            padding: calc(10px + env(safe-area-inset-top, 0px)) 20px 10px;
             background: var(--black);
             color: var(--white);
             text-decoration: none;
-            border-top: 3px solid var(--gold);
             border-bottom: 3px solid var(--gold);
             font-family: 'Oswald', sans-serif;
-            /* Sits just below the team photo on initial load. When the user
-               scrolls past it, sticks to the top of the viewport — but offset
-               by env(safe-area-inset-top) so the iPhone status bar never
-               overlaps the score. Defaults to 0 on browsers that don't
-               support safe-area (desktop, etc.). */
-            position: sticky;
-            top: env(safe-area-inset-top, 0px);
+            /* position:fixed instead of sticky because body has overflow-x:hidden,
+               which captures sticky descendants. Fixed is viewport-anchored
+               regardless of any ancestor overflow setting. */
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
             z-index: 100;
             transition: background 0.15s;
             -webkit-tap-highlight-color: transparent;
         }
         .live-now[hidden] { display: none; }
+        /* When the banner is showing, push the rest of the page down so the
+           hero isn't hidden behind it. Toggled by JS via body.live-banner-on. */
+        body { transition: padding-top 0.18s ease; }
+        body.live-banner-on {
+            padding-top: calc(env(safe-area-inset-top, 0px) + 51px);
+        }
         .live-now:hover, .live-now:active { background: var(--gray-900); }
         .live-now-pulse {
             width: 11px; height: 11px; border-radius: 50%;
@@ -1281,11 +1289,17 @@
             flex-shrink: 0;
         }
         @media (max-width: 600px) {
-            .live-now { padding: 8px 14px; gap: 10px; }
+            .live-now {
+                padding: calc(8px + env(safe-area-inset-top, 0px)) 14px 8px;
+                gap: 10px;
+            }
             .live-now-label { font-size: 10px; letter-spacing: 2px; }
             .live-now-matchup { font-size: 12px; }
             .live-now-score { font-size: 20px; letter-spacing: 1px; }
             .live-now-arrow { font-size: 14px; }
+            body.live-banner-on {
+                padding-top: calc(env(safe-area-inset-top, 0px) + 43px);
+            }
         }
         @media print {
             .live-now { display: none !important; }
@@ -2363,6 +2377,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!liveGame) {
             banner.hidden = true;
             banner.removeAttribute('data-target-id');
+            // Banner is fixed-positioned; remove the body padding compensation
+            document.body.classList.remove('live-banner-on');
             return;
         }
 
@@ -2373,6 +2389,9 @@ document.addEventListener('DOMContentLoaded', () => {
         scoreEl.textContent = o + ' – ' + p;
         banner.hidden = false;
         banner.setAttribute('data-target-id', liveGame.id || '');
+        // Banner is fixed-positioned at top of viewport; pad the body so
+        // the hero isn't hidden behind it.
+        document.body.classList.add('live-banner-on');
     }
 
     /* =================================================================
