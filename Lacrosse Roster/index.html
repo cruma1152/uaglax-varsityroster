@@ -1028,6 +1028,191 @@
             border-radius: 999px; font-size: 13px;
             border: none; cursor: pointer;
         }
+
+        /* ===== ADMIN: SCORE EDIT (PIN-gated) ===== */
+        /* Tiny lock icon in the schedule card top-right. Subtle by default;
+           goes gold when edit mode is active. Anchored to the card. */
+        .schedule-section > .schedule-card { position: relative; }
+        .score-lock {
+            position: absolute; top: 12px; right: 14px;
+            width: 32px; height: 32px;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            color: var(--gray-200);
+            cursor: pointer;
+            transition: color 0.15s, border-color 0.15s, background 0.15s;
+            -webkit-tap-highlight-color: transparent;
+            padding: 0;
+        }
+        .score-lock:hover { color: var(--gray-500); border-color: var(--gray-200); }
+        .score-lock svg { width: 16px; height: 16px; display: block; }
+        .score-lock .score-lock-open { display: none; }
+        .score-lock.unlocked {
+            color: var(--gold-dark);
+            border-color: var(--gold);
+            background: var(--gold-bg);
+        }
+        .score-lock.unlocked .score-lock-closed { display: none; }
+        .score-lock.unlocked .score-lock-open { display: block; }
+
+        /* Banner above games list when edit mode is on */
+        .edit-mode-banner {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 10px;
+            margin-top: 12px; margin-bottom: 4px;
+            padding: 8px 12px;
+            background: var(--gold-bg);
+            border: 1px solid var(--gold);
+            border-radius: 6px;
+            font-family: 'Oswald', sans-serif;
+            font-size: 11px; font-weight: 600;
+            letter-spacing: 1.5px; text-transform: uppercase;
+            color: var(--gold-dark);
+        }
+        .edit-mode-banner[hidden] { display: none; }
+        .edit-mode-banner-actions { display: flex; gap: 8px; }
+        .edit-mode-banner-btn {
+            background: transparent;
+            border: 1px solid var(--gold-dark);
+            color: var(--gold-dark);
+            font-family: 'Oswald', sans-serif;
+            font-size: 10px; font-weight: 600;
+            letter-spacing: 1px; text-transform: uppercase;
+            padding: 4px 8px; border-radius: 4px;
+            cursor: pointer;
+        }
+        .edit-mode-banner-btn:hover { background: var(--gold-stripe); }
+
+        /* Per-row edit panel — appears inside the game row, full width below */
+        .game-edit-panel {
+            grid-column: 1 / -1;
+            display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+            padding: 10px 0 4px;
+            margin-top: 6px;
+            border-top: 1px dashed var(--gray-200);
+        }
+        .edit-field {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-family: 'Oswald', sans-serif;
+            font-size: 11px; font-weight: 600;
+            letter-spacing: 1px; text-transform: uppercase;
+            color: var(--gray-700);
+        }
+        .edit-field input[type="number"] {
+            width: 56px;
+            padding: 6px;
+            font-family: 'Oswald', sans-serif;
+            font-size: 16px; font-weight: 700;
+            text-align: center;
+            border: 1px solid var(--gray-200);
+            border-radius: 4px;
+            -moz-appearance: textfield;
+        }
+        .edit-field input[type="number"]::-webkit-outer-spin-button,
+        .edit-field input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none; margin: 0;
+        }
+        .edit-field input[type="number"]:focus {
+            outline: none; border-color: var(--gold);
+            box-shadow: 0 0 0 2px var(--gold-stripe);
+        }
+        .edit-field-final { cursor: pointer; user-select: none; }
+        .edit-field-final input[type="checkbox"] {
+            width: 16px; height: 16px;
+            accent-color: var(--gold-dark);
+            cursor: pointer;
+        }
+        .edit-save-btn {
+            margin-left: auto;
+            padding: 7px 14px;
+            background: var(--black); color: var(--gold);
+            font-family: 'Oswald', sans-serif;
+            font-size: 11px; font-weight: 700;
+            letter-spacing: 1.5px; text-transform: uppercase;
+            border: none; border-radius: 4px;
+            cursor: pointer;
+            transition: opacity 0.15s, background 0.15s;
+        }
+        .edit-save-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+        .edit-save-btn.saving { background: var(--gray-700); }
+        .edit-save-btn.saved  { background: var(--gold); color: var(--black); }
+        .edit-save-btn.error  { background: #b91c1c; color: white; }
+
+        @media (max-width: 640px) {
+            .game-edit-panel { gap: 8px; padding: 8px 0 4px; }
+            .edit-field input[type="number"] { width: 50px; font-size: 15px; }
+            .edit-save-btn { padding: 6px 12px; }
+        }
+        @media print {
+            .score-lock, .edit-mode-banner, .game-edit-panel { display: none !important; }
+        }
+
+        /* ===== PIN ENTRY MODAL ===== */
+        .score-pin-modal {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px;
+            animation: installFadeIn 0.18s ease;
+        }
+        .score-pin-modal[hidden] { display: none; }
+        .score-pin-card {
+            background: white;
+            border-radius: 14px;
+            max-width: 360px; width: 100%;
+            padding: 24px 22px 20px;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            animation: installSlideUp 0.22s ease;
+        }
+        .score-pin-card h3 {
+            margin: 0 0 10px;
+            font-family: 'Oswald', sans-serif;
+            font-size: 18px; letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--black);
+        }
+        .score-pin-card p {
+            color: var(--gray-700); font-size: 13.5px; line-height: 1.5;
+            margin-bottom: 14px;
+        }
+        .score-pin-input {
+            width: 100%;
+            padding: 12px 14px;
+            font-family: 'Oswald', sans-serif;
+            font-size: 22px; font-weight: 700;
+            text-align: center; letter-spacing: 8px;
+            border: 1px solid var(--gray-200);
+            border-radius: 6px;
+            margin-bottom: 12px;
+            box-sizing: border-box;
+        }
+        .score-pin-input:focus {
+            outline: none; border-color: var(--gold);
+            box-shadow: 0 0 0 3px var(--gold-stripe);
+        }
+        .score-pin-error {
+            color: #b91c1c; font-size: 12.5px;
+            margin-top: -8px; margin-bottom: 12px; min-height: 18px;
+        }
+        .score-pin-actions { display: flex; gap: 10px; }
+        .score-pin-actions button {
+            flex: 1;
+            padding: 10px 14px;
+            font-family: 'Oswald', sans-serif;
+            font-size: 12.5px; font-weight: 700;
+            letter-spacing: 1.5px; text-transform: uppercase;
+            border-radius: 6px; cursor: pointer; border: none;
+        }
+        .score-pin-actions .btn-cancel {
+            background: var(--gray-100); color: var(--gray-700);
+            border: 1px solid var(--gray-200);
+        }
+        .score-pin-actions .btn-confirm { background: var(--black); color: var(--gold); }
+        .score-pin-actions .btn-confirm:hover { background: var(--gray-900); }
     </style>
 </head>
 <body>
@@ -1317,6 +1502,19 @@
 <!-- ===== SCHEDULE & RESULTS ===== -->
 <div class="schedule-section" id="schedule">
     <div class="schedule-card">
+        <!-- PIN-gated lock for in-app score entry. Locked icon by default;
+             tap to enter PIN. Goes gold + open lock when edit mode is on. -->
+        <button class="score-lock" id="scoreLockBtn" type="button" aria-label="Enter score-edit mode" title="Enter score-edit mode">
+            <svg class="score-lock-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="5" y="11" width="14" height="9" rx="1.5"/>
+                <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+            </svg>
+            <svg class="score-lock-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="5" y="11" width="14" height="9" rx="1.5"/>
+                <path d="M8 11V7a4 4 0 0 1 7.5-2"/>
+            </svg>
+        </button>
+
         <div class="schedule-top">
             <div class="season-head">
                 <div class="season-eyebrow">2026 Season</div>
@@ -1327,8 +1525,33 @@
             </div>
             <div class="next-game" id="nextGame" hidden></div>
         </div>
+
+        <!-- Visible only while edit mode is on -->
+        <div class="edit-mode-banner" id="editModeBanner" hidden>
+            <span>Score Edit Mode</span>
+            <div class="edit-mode-banner-actions">
+                <button type="button" class="edit-mode-banner-btn" id="editModeForgetBtn">Forget PIN</button>
+                <button type="button" class="edit-mode-banner-btn" id="editModeOffBtn">Done</button>
+            </div>
+        </div>
+
         <div class="games-list" id="gamesList">
             <div class="schedule-empty">Loading schedule&hellip;</div>
+        </div>
+    </div>
+</div>
+
+<!-- PIN entry modal (shown when the lock is tapped without a stored PIN, or after a 401) -->
+<div class="score-pin-modal" id="scorePinModal" hidden role="dialog" aria-modal="true" aria-labelledby="scorePinTitle">
+    <div class="score-pin-card">
+        <h3 id="scorePinTitle">Enter Score-Edit PIN</h3>
+        <p id="scorePinMessage">Saved on this phone — you only have to type it once.</p>
+        <input type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off"
+               class="score-pin-input" id="scorePinInput" placeholder="••••" maxlength="12" aria-label="PIN" />
+        <div class="score-pin-error" id="scorePinError" aria-live="polite"></div>
+        <div class="score-pin-actions">
+            <button type="button" class="btn-cancel" id="scorePinCancel">Cancel</button>
+            <button type="button" class="btn-confirm" id="scorePinConfirm">Unlock</button>
         </div>
     </div>
 </div>
@@ -1613,7 +1836,19 @@ document.addEventListener('DOMContentLoaded', () => {
 (function () {
     const SCHEDULE_API = 'https://vh-api.charles-9e5.workers.dev/lacrosse/schedule';
     const CACHE_KEY = 'uaglax_schedule_cache_v1';
+    const PIN_KEY = 'uaglax_score_pin_v1';
+    const POLL_INTERVAL_MS = 30000;
     const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    // Module state for the new admin / live-polling features
+    let currentGames = [];
+    let editMode = false;
+    let pollingTimer = null;
+
+    // PIN helpers — stored in localStorage, scoped to this device
+    function loadPin()    { try { return localStorage.getItem(PIN_KEY) || ''; } catch (_) { return ''; } }
+    function savePin(p)   { try { localStorage.setItem(PIN_KEY, p); } catch (_) {} }
+    function forgetPin()  { try { localStorage.removeItem(PIN_KEY); } catch (_) {} }
 
     function escapeHtml(s) {
         return String(s == null ? '' : s)
@@ -1653,6 +1888,10 @@ document.addEventListener('DOMContentLoaded', () => {
         games = (games || []).slice().sort(function (a, b) {
             return String(a.date || '').localeCompare(String(b.date || ''));
         });
+        // Hold onto the latest server snapshot so the save handler can swap a
+        // single game in place without re-fetching, and so the poller can
+        // decide whether anything is currently "live."
+        currentGames = games;
 
         // Three states driven by the Final checkbox:
         //   - final: true                        → Results section, W/L/T badge
@@ -1706,6 +1945,9 @@ document.addEventListener('DOMContentLoaded', () => {
             upcoming.forEach(function (g, idx) { html += rowHtml(g, 'upcoming', idx === 0); });
         }
         list.innerHTML = html || '<div class="schedule-empty">No games scheduled.</div>';
+
+        // Start/stop the 30s live poll based on whether any non-final game has a score
+        updatePollingState();
     }
 
     function rowHtml(g, state, isNext) {
@@ -1753,8 +1995,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const happyHour = happyHourHtml(g);
 
         const rowClass = 'game-row ' + state + (isLive ? ' is-live' : (isNext ? ' next' : ''));
+        const editPanel = editMode && g.id ? editPanelHtml(g) : '';
 
-        return '<div class="' + rowClass + '">' +
+        return '<div class="' + rowClass + '" data-game-id="' + escapeHtml(g.id || '') + '">' +
                 '<div class="game-date">' + dateDisplay +
                     (weekday ? '<span class="game-weekday">' + weekday + '</span>' : '') +
                 '</div>' +
@@ -1765,6 +2008,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 '</div>' +
                 '<div class="game-right">' + right + '</div>' +
                 happyHour +
+                editPanel +
+            '</div>';
+    }
+
+    // Per-row score editor. Only rendered when edit mode is on. Score inputs
+    // are blank when the field is null on the server (i.e. game hasn't started).
+    function editPanelHtml(g) {
+        const our = (typeof g.ourScore === 'number') ? g.ourScore : '';
+        const opp = (typeof g.oppScore === 'number') ? g.oppScore : '';
+        const finalChecked = g.final ? 'checked' : '';
+        return '<div class="game-edit-panel" data-game-id="' + escapeHtml(g.id) + '">' +
+                '<label class="edit-field">Our' +
+                    '<input type="number" min="0" max="99" inputmode="numeric" data-field="ourScore" value="' + our + '"/>' +
+                '</label>' +
+                '<label class="edit-field">Opp' +
+                    '<input type="number" min="0" max="99" inputmode="numeric" data-field="oppScore" value="' + opp + '"/>' +
+                '</label>' +
+                '<label class="edit-field edit-field-final">' +
+                    '<input type="checkbox" data-field="final" ' + finalChecked + '/>Final' +
+                '</label>' +
+                '<button type="button" class="edit-save-btn" data-action="save">Save</button>' +
             '</div>';
     }
 
@@ -1831,11 +2095,259 @@ document.addEventListener('DOMContentLoaded', () => {
         list.innerHTML = '<div class="schedule-empty">Schedule unavailable — check back shortly.</div>';
     }
 
+    /* =================================================================
+     *  ADMIN: SCORE ENTRY
+     *  Lets Charles tap the lock, type a PIN once, and from then on edit
+     *  scores + Final right inside the app — the worker writes back to
+     *  Airtable on PATCH /lacrosse/schedule/:id.
+     * ================================================================= */
+
+    // Toggle edit mode on/off. Re-renders so the per-row edit panels appear/disappear.
+    function setEditMode(on) {
+        editMode = !!on;
+        const lock   = document.getElementById('scoreLockBtn');
+        const banner = document.getElementById('editModeBanner');
+        if (lock)   lock.classList.toggle('unlocked', editMode);
+        if (banner) banner.hidden = !editMode;
+        if (lock)   lock.setAttribute('aria-label', editMode ? 'Exit score-edit mode' : 'Enter score-edit mode');
+        // Re-render the games list to add/remove the inline edit panels
+        if (currentGames && currentGames.length) render(currentGames);
+    }
+
+    // Open the PIN modal. Optional `message` overrides the default copy
+    // (used when a save returns 401 and we need to prompt for a fresh PIN).
+    function openPinModal(message) {
+        const modal = document.getElementById('scorePinModal');
+        const input = document.getElementById('scorePinInput');
+        const error = document.getElementById('scorePinError');
+        const msg   = document.getElementById('scorePinMessage');
+        if (!modal) return;
+        if (msg) msg.textContent = message || 'Saved on this phone — you only have to type it once.';
+        if (error) error.textContent = '';
+        if (input) { input.value = ''; }
+        modal.hidden = false;
+        document.body.style.overflow = 'hidden';
+        setTimeout(function () { if (input) input.focus(); }, 50);
+    }
+    function closePinModal() {
+        const modal = document.getElementById('scorePinModal');
+        if (!modal) return;
+        modal.hidden = true;
+        document.body.style.overflow = '';
+    }
+
+    // Validate a PIN by sending an empty PATCH to the worker. The worker
+    // returns 400 ("No editable fields provided") when the PIN is good and
+    // 401 when it isn't, which is enough to distinguish the two without
+    // needing a dedicated /verify endpoint.
+    async function verifyPin(pin) {
+        if (!pin) return false;
+        try {
+            // Use the first known game ID — the worker has to look the row up
+            // before it checks fields, but it checks the PIN before that, so
+            // any valid record ID format works. Fall back to a synthetic id.
+            const probeId = (currentGames[0] && currentGames[0].id) || 'rec00000000000000';
+            const res = await fetch(SCHEDULE_API + '/' + encodeURIComponent(probeId), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'X-UAGLAX-PIN': pin },
+                body: '{}'
+            });
+            // 401 = bad PIN. Anything else (400 empty body, 404 missing record,
+            // 200 success on the off chance of a real id) means the PIN passed.
+            return res.status !== 401;
+        } catch (_) {
+            // Network error — assume the PIN is fine for now; the actual save
+            // will surface any real auth problem.
+            return true;
+        }
+    }
+
+    // Save a single game. Reads the inputs out of the panel DOM, posts to
+    // the worker, then swaps the updated game into currentGames and re-renders.
+    async function saveGame(panel) {
+        const gameId = panel.getAttribute('data-game-id');
+        const pin    = loadPin();
+        const saveBtn = panel.querySelector('.edit-save-btn');
+        if (!pin) {
+            openPinModal('Enter PIN to save scores');
+            return;
+        }
+        const ourInput   = panel.querySelector('input[data-field="ourScore"]');
+        const oppInput   = panel.querySelector('input[data-field="oppScore"]');
+        const finalInput = panel.querySelector('input[data-field="final"]');
+
+        const body = {
+            ourScore: ourInput.value === '' ? null : Number(ourInput.value),
+            oppScore: oppInput.value === '' ? null : Number(oppInput.value),
+            final:    !!finalInput.checked
+        };
+
+        saveBtn.disabled = true;
+        saveBtn.classList.remove('saved', 'error');
+        saveBtn.classList.add('saving');
+        saveBtn.textContent = 'Saving…';
+
+        try {
+            const res = await fetch(SCHEDULE_API + '/' + encodeURIComponent(gameId), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'X-UAGLAX-PIN': pin },
+                body: JSON.stringify(body)
+            });
+            if (res.status === 401) {
+                forgetPin();
+                saveBtn.classList.remove('saving');
+                saveBtn.classList.add('error');
+                saveBtn.textContent = 'PIN bad';
+                saveBtn.disabled = false;
+                openPinModal('PIN was rejected — re-enter');
+                return;
+            }
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            if (!data || !data.game) throw new Error('Bad response');
+
+            // Swap the updated game into our cached list and re-render
+            const idx = currentGames.findIndex(function (x) { return x.id === data.game.id; });
+            if (idx >= 0) currentGames[idx] = data.game;
+            // Update the localStorage cache too so the next page load is fresh
+            try { localStorage.setItem(CACHE_KEY, JSON.stringify(currentGames)); } catch (_) {}
+            render(currentGames);
+
+            // Find the new save button (DOM was rebuilt) and flash it green briefly
+            const newPanel = document.querySelector('.game-edit-panel[data-game-id="' + data.game.id + '"]');
+            const newBtn   = newPanel && newPanel.querySelector('.edit-save-btn');
+            if (newBtn) {
+                newBtn.classList.add('saved');
+                newBtn.textContent = 'Saved ✓';
+                setTimeout(function () {
+                    if (newBtn.isConnected) {
+                        newBtn.classList.remove('saved');
+                        newBtn.textContent = 'Save';
+                    }
+                }, 1500);
+            }
+        } catch (err) {
+            console.warn('Score save failed:', err);
+            saveBtn.classList.remove('saving');
+            saveBtn.classList.add('error');
+            saveBtn.textContent = 'Retry';
+            saveBtn.disabled = false;
+        }
+    }
+
+    // Click delegation for the save button inside any edit panel
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest('.edit-save-btn');
+        if (!btn) return;
+        const panel = btn.closest('.game-edit-panel');
+        if (panel) saveGame(panel);
+    });
+
+    /* =================================================================
+     *  LIVE POLLING
+     *  When a non-final game has a score, refetch the schedule every 30s
+     *  so parents see the score climb without reloading. Stops itself
+     *  the moment nothing is live (or all live games are checked Final).
+     *  Pauses while the user is typing in an edit panel so we don't
+     *  clobber their input mid-tap.
+     * ================================================================= */
+    function updatePollingState() {
+        const hasLive = currentGames.some(function (g) {
+            return g.final !== true && (typeof g.ourScore === 'number' || typeof g.oppScore === 'number');
+        });
+        if (hasLive && !pollingTimer) {
+            pollingTimer = setInterval(function () {
+                if (document.hidden) return;  // browser tab not visible
+                if (document.activeElement && document.activeElement.closest('.game-edit-panel')) return;
+                loadSchedule();
+            }, POLL_INTERVAL_MS);
+        } else if (!hasLive && pollingTimer) {
+            clearInterval(pollingTimer);
+            pollingTimer = null;
+        }
+    }
+
+    /* =================================================================
+     *  LOCK / PIN MODAL WIRING
+     * ================================================================= */
+    function wireAdminUi() {
+        const lock     = document.getElementById('scoreLockBtn');
+        const modal    = document.getElementById('scorePinModal');
+        const input    = document.getElementById('scorePinInput');
+        const errorEl  = document.getElementById('scorePinError');
+        const cancel   = document.getElementById('scorePinCancel');
+        const confirm  = document.getElementById('scorePinConfirm');
+        const offBtn   = document.getElementById('editModeOffBtn');
+        const forget   = document.getElementById('editModeForgetBtn');
+        if (!lock || !modal) return;
+
+        // Tap the lock — if PIN saved, just toggle edit mode. Else open modal.
+        lock.addEventListener('click', function () {
+            if (editMode) { setEditMode(false); return; }
+            const pin = loadPin();
+            if (pin) {
+                // Have a saved PIN — flip on edit mode optimistically.
+                // If a save later returns 401, we'll prompt to re-enter.
+                setEditMode(true);
+            } else {
+                openPinModal();
+            }
+        });
+
+        // PIN modal — Cancel
+        cancel.addEventListener('click', closePinModal);
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) closePinModal();
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && !modal.hidden) closePinModal();
+        });
+
+        // PIN modal — Unlock
+        async function tryUnlock() {
+            const pin = (input.value || '').trim();
+            if (!pin) {
+                errorEl.textContent = 'Enter your PIN.';
+                return;
+            }
+            confirm.disabled = true;
+            confirm.textContent = 'Checking…';
+            const ok = await verifyPin(pin);
+            confirm.disabled = false;
+            confirm.textContent = 'Unlock';
+            if (ok) {
+                savePin(pin);
+                closePinModal();
+                setEditMode(true);
+            } else {
+                errorEl.textContent = 'That PIN didn’t work.';
+                input.select();
+            }
+        }
+        confirm.addEventListener('click', tryUnlock);
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') tryUnlock();
+        });
+
+        // Banner — Done turns edit mode off but keeps the saved PIN.
+        // Forget PIN clears the saved PIN AND turns edit mode off so the
+        // next session has to re-authenticate.
+        if (offBtn) offBtn.addEventListener('click', function () { setEditMode(false); });
+        if (forget) forget.addEventListener('click', function () {
+            forgetPin();
+            setEditMode(false);
+        });
+    }
+
     // Kick off after DOM is ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', loadSchedule);
-    } else {
+    function start() {
+        wireAdminUi();
         loadSchedule();
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', start);
+    } else {
+        start();
     }
 })();
 </script>
