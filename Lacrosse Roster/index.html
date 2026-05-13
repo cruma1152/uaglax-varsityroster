@@ -262,6 +262,28 @@
         }
         .jump-btn:hover .jump-arrow { transform: translateY(2px); }
 
+        /* Playoffs button — black/gold inverse + soft pulse to draw the eye */
+        .jump-btn.playoff {
+            background: var(--black);
+            color: var(--gold);
+            border-color: var(--gold);
+            box-shadow: 0 0 0 0 rgba(247,196,20,0.55);
+            animation: playoffPulse 2.2s ease-in-out infinite;
+        }
+        .jump-btn.playoff:hover {
+            background: #2a2a2a;
+            color: var(--gold-light);
+            box-shadow: 0 2px 12px rgba(247,196,20,0.55);
+        }
+        @keyframes playoffPulse {
+            0%   { box-shadow: 0 0 0 0 rgba(247,196,20,0.55); }
+            60%  { box-shadow: 0 0 0 10px rgba(247,196,20,0); }
+            100% { box-shadow: 0 0 0 0 rgba(247,196,20,0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .jump-btn.playoff { animation: none; }
+        }
+
         /* ===== ROSTER TABLE ===== */
         .roster-section {
             max-width: 960px;
@@ -1695,7 +1717,7 @@
     <button class="sort-btn" data-sort="grade" data-dir="asc" onclick="sortRoster(this)">Grade</button>
     <button class="sort-btn" data-sort="position" data-dir="asc" onclick="sortRoster(this)">Position</button>
     <a class="jump-btn" href="#schedule">Schedule &amp; Results <span class="jump-arrow">&darr;</span></a>
-    <a class="jump-btn" href="#tournament" style="margin-left:8px;">Tournament <span class="jump-arrow">&darr;</span></a>
+    <a class="jump-btn playoff" href="#tournament" style="margin-left:8px;">Playoffs <span class="jump-arrow">&darr;</span></a>
 </div>
 
 <!-- ===== ROSTER TABLE ===== -->
@@ -3056,7 +3078,8 @@ document.addEventListener('DOMContentLoaded', () => {
                            (g.bottomTeam && g.bottomTeam.toUpperCase().indexOf(UA_NAME) !== -1);
             const uaWon = g.final && g.winner && g.winner.toUpperCase().indexOf(UA_NAME) !== -1;
             const uaLost = g.final && g.winner && inGame && g.winner.toUpperCase().indexOf(UA_NAME) === -1;
-            steps.push({ game: g, inGame: inGame, won: uaWon, lost: uaLost, eliminated: uaEliminated });
+            const prevGameId = steps.length > 0 ? steps[steps.length - 1].game.gameId : null;
+            steps.push({ game: g, inGame: inGame, won: uaWon, lost: uaLost, eliminated: uaEliminated, prevGameId: prevGameId });
             if (uaLost) uaEliminated = true;
             // Advance to next game.
             if (g.nextGame) {
@@ -3064,6 +3087,24 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 break;
             }
+        }
+
+        // Helper — for a future game on UA's path with an unknown opponent,
+        // find the OTHER feeder game (the one UA didn't come from) so we can
+        // surface the two teams that could become UA's next opponent.
+        function findOpponentFeeder(g, prevGameId) {
+            if (!g || !g.gameId) return null;
+            for (let j = 0; j < allGames.length; j++) {
+                const fg = allGames[j];
+                if (fg.nextGame === g.gameId && fg.gameId !== prevGameId) {
+                    return fg;
+                }
+            }
+            return null;
+        }
+        function teamLabel(team, seed) {
+            if (!team) return null;
+            return seed != null ? '#' + seed + ' ' + team : team;
         }
 
         let html = '<div class="ua-path">';
@@ -3080,9 +3121,23 @@ document.addEventListener('DOMContentLoaded', () => {
             const uaTop = top.toUpperCase().indexOf(UA_NAME) !== -1;
             const opponent = uaTop ? bot : (bot.toUpperCase().indexOf(UA_NAME) !== -1 ? top : '');
             const opponentSeed = uaTop ? g.bottomSeed : g.topSeed;
-            const opponentDisplay = opponent
-                ? (opponentSeed != null ? '#' + opponentSeed + ' ' + opponent : opponent)
-                : ('Winner of ' + (uaTop ? (g.bottomSource || 'TBD') : (g.topSource || 'TBD')));
+
+            let opponentDisplay;
+            if (opponent) {
+                opponentDisplay = (opponentSeed != null ? '#' + opponentSeed + ' ' + opponent : opponent);
+            } else {
+                // Try to surface the two teams in the feeder game UA didn't come from.
+                const feeder = findOpponentFeeder(g, step.prevGameId);
+                const tA = feeder ? teamLabel(feeder.topTeam, feeder.topSeed) : null;
+                const tB = feeder ? teamLabel(feeder.bottomTeam, feeder.bottomSeed) : null;
+                if (tA && tB) {
+                    opponentDisplay = 'Winner of ' + tA + ' vs ' + tB;
+                } else if (tA || tB) {
+                    opponentDisplay = 'Winner of ' + (tA || tB) + ' vs TBD';
+                } else {
+                    opponentDisplay = 'Winner of ' + (uaTop ? (g.bottomSource || 'TBD') : (g.topSource || 'TBD'));
+                }
+            }
 
             // Score
             let scoreHtml = '';
