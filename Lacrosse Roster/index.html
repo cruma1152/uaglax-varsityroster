@@ -1316,17 +1316,18 @@
            vertically with CSS-drawn connector lines between paired games. UA's
            path is highlighted gold. Designed to be readable on a 360px phone
            and crisp on desktop. */
+        /* Mirrors .schedule-section sizing exactly so both cards line up. */
         .tournament-section {
-            padding: 16px 16px 28px;
-            background: var(--gray-100);
+            max-width: 960px;
+            margin: 0 auto 40px;
+            padding: 24px;
         }
-        .tournament-card {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: white;
-            padding: 28px 24px 20px;
+        .tournament-section > .tournament-card {
+            background: var(--white);
             border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            border: 1px solid var(--gray-200);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            padding: 32px 28px 24px;
         }
         .tournament-head {
             display: flex;
@@ -1593,8 +1594,8 @@
         }
 
         @media (max-width: 768px) {
-            .tournament-section { padding: 14px 12px 24px; }
-            .tournament-card { padding: 22px 16px 18px; border-radius: 10px; }
+            .tournament-section { padding: 14px 12px 20px; }
+            .tournament-section > .tournament-card { padding: 22px 16px 18px; border-radius: 10px; }
             .tournament-title { font-size: 18px; }
             .bracket-round { min-width: 138px; }
             .bracket-game-team { font-size: 11px; padding: 5px 8px; min-height: 28px; }
