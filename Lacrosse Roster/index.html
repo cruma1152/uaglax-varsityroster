@@ -1442,8 +1442,26 @@
             text-transform: uppercase;
             color: var(--gold-dark);
         }
-        .ua-path-matchup { flex: 1; font-size: 14px; font-weight: 600; color: var(--gray-900); }
+        .ua-path-matchup { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: var(--gray-900); }
         .ua-path-when { font-size: 11px; color: var(--gray-500); margin-top: 3px; font-weight: 400; }
+        .ua-path-venue {
+            font-size: 11.5px;
+            color: var(--gray-700);
+            margin-top: 2px;
+            font-weight: 500;
+        }
+        .ua-path-venue a {
+            color: var(--gold-dark);
+            text-decoration: none;
+            border-bottom: 1px dashed rgba(212,163,14,0.4);
+        }
+        .ua-path-venue a:hover { color: var(--black); border-bottom-color: var(--gold-dark); }
+        .ua-path-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
         .ua-path-score {
             font-family: 'Courier New', monospace;
             font-weight: 700;
@@ -2310,6 +2328,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return String(s == null ? '' : s)
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
+    // Strip auto-generated "LIVE BRACKET: /lacrosse/bracket (Game ID: G##)"
+    // text the playoff sync adds to notes. Keeps the actual notes readable
+    // and lets the meta line wrap cleanly next to the location.
+    function cleanNotes(notes) {
+        if (!notes) return '';
+        let s = String(notes);
+        s = s.replace(/\.?\s*LIVE BRACKET:[^]*$/i, '');
+        s = s.replace(/\s*\(GAME ID:\s*\w+\)\s*/i, '');
+        s = s.replace(/[\s.·]+$/, '');
+        return s.trim();
+    }
     function parseDate(s) {
         if (!s) return null;
         const d = new Date(s + 'T00:00:00');
@@ -2348,6 +2377,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // single game in place without re-fetching, and so the poller can
         // decide whether anything is currently "live."
         currentGames = games;
+
+        // Expose to other modules (bracket) so UA Path can cross-reference
+        // venue / pre / post info by date without refetching.
+        window.UAGLAX_SCHEDULE = {
+            games: function () { return currentGames; },
+            pillsHtml: function (sg) { return happyHourHtml(sg); }
+        };
+        document.dispatchEvent(new CustomEvent('uaglax:schedule-updated'));
 
         // Three states driven by the Final checkbox:
         //   - final: true                        → Results section, W/L/T badge
@@ -2445,7 +2482,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Meta line: optional tag (Notes), location
         const metaBits = [];
-        if (g.notes) metaBits.push('<span class="game-tag">' + escapeHtml(g.notes) + '</span>');
+        const cleanedNotes = cleanNotes(g.notes);
+        if (cleanedNotes) metaBits.push('<span class="game-tag">' + escapeHtml(cleanedNotes) + '</span>');
         if (g.location) metaBits.push(escapeHtml(g.location));
         const metaLine = metaBits.length
             ? '<div class="game-meta-line">' + metaBits.join('<span class="meta-sep">·</span>') + '</div>'
@@ -3109,6 +3147,40 @@ document.addEventListener('DOMContentLoaded', () => {
             return seed != null ? '#' + seed + ' ' + team : team;
         }
 
+        // Smart venue defaults — UA is higher seed through Regional Final,
+        // so home games are at UA. State rounds host venues are set by OHSAA.
+        function defaultVenue(round) {
+            switch (round) {
+                case 'R1 District Semi':
+                case 'R2 District Final':
+                case 'R3 Regional Semi':
+                case 'R4 Regional Final':
+                    return 'Upper Arlington HS';
+                case 'State Semi':  return 'Site TBA';
+                case 'State Final': return 'Historic Crew Stadium';
+                default: return null;
+            }
+        }
+
+        // Cross-reference with the schedule (loaded by the schedule module)
+        // to surface venue / pre / post info that's already maintained in
+        // Airtable. Matches by date — sufficient since UA only plays one
+        // game per day.
+        function findScheduleMatch(g) {
+            if (!window.UAGLAX_SCHEDULE || !g || !g.date) return null;
+            const sched = window.UAGLAX_SCHEDULE.games() || [];
+            for (let j = 0; j < sched.length; j++) {
+                if (sched[j].date === g.date) return sched[j];
+            }
+            return null;
+        }
+
+        function mapsHref(venue, address) {
+            const q = [venue, address].filter(Boolean).join(' ');
+            if (!q) return null;
+            return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
+        }
+
         let html = '<div class="ua-path">';
         steps.forEach(function (step) {
             const g = step.game;
@@ -3160,11 +3232,44 @@ document.addEventListener('DOMContentLoaded', () => {
                        : g.final ? 'Final'
                        : (fmtDate(g.date) + ' · ' + (g.time || 'TBD'));
 
+            // Venue — bracket data wins, then matching schedule row, then
+            // smart default by round.
+            const matchedSched = findScheduleMatch(g);
+            let venueText = (g.venue || g.location || '').trim();
+            let venueAddress = (g.venueAddress || g.address || '').trim();
+            if (!venueText && matchedSched) {
+                venueText = (matchedSched.location || '').trim();
+            }
+            if (!venueText && !step.eliminated) {
+                venueText = defaultVenue(g.round) || '';
+            }
+            let venueLine = '';
+            if (venueText && !step.eliminated) {
+                const href = mapsHref(venueText, venueAddress);
+                const inner = '<span>' + escapeHtml(venueText) + '</span>';
+                venueLine = '<div class="ua-path-venue">' +
+                    (href ? '<a href="' + href + '" target="_blank" rel="noopener">' + inner + '</a>' : inner) +
+                '</div>';
+            }
+
+            // Pre / post pills — pulled from the matched schedule row so
+            // Charles only has to maintain pre/post in one place (the
+            // schedule Airtable).
+            let pillsRow = '';
+            if (matchedSched && !step.eliminated && window.UAGLAX_SCHEDULE) {
+                const pills = window.UAGLAX_SCHEDULE.pillsHtml(matchedSched);
+                if (pills) {
+                    pillsRow = '<div class="ua-path-pills">' + pills + '</div>';
+                }
+            }
+
             html += '<div class="' + classes + '">' +
                 '<div class="ua-path-round">' + escapeHtml(ROUND_LABEL[g.round] || g.round) + '</div>' +
                 '<div class="ua-path-matchup">' +
                     (step.eliminated ? '—' : 'UA vs ' + escapeHtml(opponentDisplay)) +
                     '<div class="ua-path-when">' + escapeHtml(when) + '</div>' +
+                    venueLine +
+                    pillsRow +
                 '</div>' +
                 scoreHtml +
             '</div>';
@@ -3206,6 +3311,12 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (view === 'state') currentView = { type: 'state' };
         else if (view === 'region') currentView = { type: 'region', region: tab.dataset.region };
         renderCurrent();
+    });
+
+    // Re-render once the schedule finishes loading so the UA Path can pick
+    // up venue / pre / post info from the matching schedule rows.
+    document.addEventListener('uaglax:schedule-updated', function () {
+        if (allGames.length > 0) renderCurrent();
     });
 
     // Initial load + periodic refresh (every 90s — light, mostly useful on game days)
