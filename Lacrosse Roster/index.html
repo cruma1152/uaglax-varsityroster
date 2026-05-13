@@ -262,23 +262,25 @@
         }
         .jump-btn:hover .jump-arrow { transform: translateY(2px); }
 
-        /* Playoffs button — black/gold inverse + soft pulse to draw the eye */
+        /* Playoffs button — bright scarlet + soft pulse to draw the eye */
         .jump-btn.playoff {
-            background: var(--black);
-            color: var(--gold);
-            border-color: var(--gold);
-            box-shadow: 0 0 0 0 rgba(247,196,20,0.55);
+            background: #C8102E;
+            color: #FFFFFF;
+            border-color: #C8102E;
+            font-weight: 800;
+            box-shadow: 0 0 0 0 rgba(200,16,46,0.55);
             animation: playoffPulse 2.2s ease-in-out infinite;
         }
         .jump-btn.playoff:hover {
-            background: #2a2a2a;
-            color: var(--gold-light);
-            box-shadow: 0 2px 12px rgba(247,196,20,0.55);
+            background: #A50D26;
+            border-color: #A50D26;
+            color: #FFFFFF;
+            box-shadow: 0 2px 12px rgba(200,16,46,0.55);
         }
         @keyframes playoffPulse {
-            0%   { box-shadow: 0 0 0 0 rgba(247,196,20,0.55); }
-            60%  { box-shadow: 0 0 0 10px rgba(247,196,20,0); }
-            100% { box-shadow: 0 0 0 0 rgba(247,196,20,0); }
+            0%   { box-shadow: 0 0 0 0 rgba(200,16,46,0.55); }
+            60%  { box-shadow: 0 0 0 10px rgba(200,16,46,0); }
+            100% { box-shadow: 0 0 0 0 rgba(200,16,46,0); }
         }
         @media (prefers-reduced-motion: reduce) {
             .jump-btn.playoff { animation: none; }
