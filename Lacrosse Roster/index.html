@@ -1706,7 +1706,7 @@
 <!-- ===== STATS BAR ===== -->
 <div class="stats-bar">
     <div class="stat-item">
-        <div class="stat-value">25</div>
+        <div class="stat-value">29</div>
         <div class="stat-label">Players</div>
     </div>
     <div class="stat-item">
@@ -1714,19 +1714,19 @@
         <div class="stat-label">Seniors</div>
     </div>
     <div class="stat-item">
-        <div class="stat-value">7</div>
+        <div class="stat-value">8</div>
         <div class="stat-label">Juniors</div>
     </div>
     <div class="stat-item">
-        <div class="stat-value">6</div>
+        <div class="stat-value">7</div>
         <div class="stat-label">Sophomores</div>
     </div>
     <div class="stat-item">
-        <div class="stat-value">3</div>
+        <div class="stat-value">5</div>
         <div class="stat-label">Freshmen</div>
     </div>
     <div class="stat-item">
-        <div class="stat-value">7A / 9D / 7M / 2G</div>
+        <div class="stat-value">9A / 9D / 8M / 3G</div>
         <div class="stat-label">Position Breakdown</div>
     </div>
 </div>
@@ -1756,7 +1756,7 @@
                 </tr>
             </thead>
             <tbody>
-                <!-- Seniors (13) -->
+                <!-- Seniors (9) -->
                 <tr>
                     <td>5</td>
                     <td class="player-name">Ellie King<span class="captain-star">&#9733;</span></td>
@@ -1811,7 +1811,7 @@
                     <td class="grade-col">Senior</td>
                     <td class="pos-col"><span class="pos-badge pos-defense">Defense</span></td>
                 </tr>
-                <!-- Juniors (11) -->
+                <!-- Juniors (8) -->
                 <tr>
                     <td>1</td>
                     <td class="player-name">Juliana English</td>
@@ -1854,7 +1854,13 @@
                     <td class="grade-col">Junior</td>
                     <td class="pos-col"><span class="pos-badge pos-goalie">Goalie</span></td>
                 </tr>
-                <!-- Sophomores (10) -->
+                <tr>
+                    <td>&mdash;</td>
+                    <td class="player-name">Addison Brownfield</td>
+                    <td class="grade-col">Junior</td>
+                    <td class="pos-col"><span class="pos-badge pos-goalie">Goalie</span></td>
+                </tr>
+                <!-- Sophomores (7) -->
                 <tr>
                     <td>8</td>
                     <td class="player-name">Morgan Falor</td>
@@ -1891,7 +1897,13 @@
                     <td class="grade-col">Sophomore</td>
                     <td class="pos-col"><span class="pos-badge pos-attack">Attack</span></td>
                 </tr>
-                <!-- Freshmen (9) -->
+                <tr>
+                    <td>&mdash;</td>
+                    <td class="player-name">Alivia Xiong</td>
+                    <td class="grade-col">Sophomore</td>
+                    <td class="pos-col"><span class="pos-badge pos-midfield">Midfield</span></td>
+                </tr>
+                <!-- Freshmen (5) -->
                 <tr>
                     <td>2</td>
                     <td class="player-name">Marg Dusseau</td>
@@ -1909,6 +1921,19 @@
                     <td class="player-name">McClain Carpenter</td>
                     <td class="grade-col">Freshman</td>
                     <td class="pos-col"><span class="pos-badge pos-goalie">Goalie</span></td>
+                </tr>
+                <!-- JV Call-ups for Playoffs (numbers TBD) -->
+                <tr>
+                    <td>&mdash;</td>
+                    <td class="player-name">Brooklyn Backes</td>
+                    <td class="grade-col">Freshman</td>
+                    <td class="pos-col"><span class="pos-badge pos-attack">Attack</span></td>
+                </tr>
+                <tr>
+                    <td>&mdash;</td>
+                    <td class="player-name">Madi Bean</td>
+                    <td class="grade-col">Freshman</td>
+                    <td class="pos-col"><span class="pos-badge pos-attack">Attack</span></td>
                 </tr>
             </tbody>
         </table>
@@ -2140,7 +2165,11 @@ const playerProfiles = {
     "Lilly Byrum": { number: 24, grade: "Sophomore", position: "Attack", dad: "Jamie Byrum", mom: "Michelle Byrum", bio: "" },
     "Marg Dusseau": { number: 2, grade: "Freshman", position: "Midfield", dad: "Steve Dusseau", mom: "Lindsay Dusseau", bio: "" },
     "Annie King": { number: 3, grade: "Freshman", position: "Midfield", dad: "Brendan King", mom: "Kelly King", bio: "" },
-    "McClain Carpenter": { number: 96, grade: "Freshman", position: "Goalie", dad: "Bobby Carpenter", mom: "Cortney Carpenter", bio: "" }
+    "McClain Carpenter": { number: 96, grade: "Freshman", position: "Goalie", dad: "Bobby Carpenter", mom: "Cortney Carpenter", bio: "" },
+    "Brooklyn Backes": { number: null, grade: "Freshman", position: "Attack", dad: "Jeff Backes", mom: "Marissa Backes", bio: "" },
+    "Madi Bean": { number: null, grade: "Freshman", position: "Attack", dad: "Bob Bean", mom: "Jessica Bean", bio: "" },
+    "Alivia Xiong": { number: null, grade: "Sophomore", position: "Midfield", dad: "Sean Xiong", mom: "Linlin Xiao", bio: "" },
+    "Addison Brownfield": { number: null, grade: "Junior", position: "Goalie", dad: "", mom: "", bio: "" }
 };
 
 // Player headshot photo mapping (number → filename)
@@ -2194,7 +2223,7 @@ function buildProfileHTML(name) {
             <img class="profile-photo" src="${makeHeadshot(name)}" alt="${name}" data-player="${name}">
             <div class="profile-info">
                 <div class="profile-name">${name}</div>
-                <div class="profile-number">#${p.number} · ${p.grade} · ${p.position}</div>
+                <div class="profile-number">${p.number ? '#' + p.number + ' · ' : ''}${p.grade} · ${p.position}</div>
                 <div class="profile-parents">${parents.join('&nbsp;&nbsp;|&nbsp;&nbsp;')}</div>
                 <div class="profile-bio">${p.bio}</div>
             </div>
