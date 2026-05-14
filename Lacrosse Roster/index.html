@@ -499,6 +499,12 @@
             color: var(--gold-dark);
             font-size: 14px;
             font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .profile-note {
+            font-size: 12px;
+            color: var(--gray-700);
+            font-style: italic;
             margin-bottom: 8px;
         }
         .profile-parents {
@@ -2154,7 +2160,7 @@ const playerProfiles = {
     "Joni Marshall": { number: 4, grade: "Junior", position: "Midfield", dad: "Buck Marshall", mom: "Jenny Marshall", bio: "" },
     "Annabelle Leibowitz": { number: 6, grade: "Junior", position: "Defense", dad: "Eric Leibowitz", mom: "Molly Iams", bio: "" },
     "Dillon Wiles": { number: 9, grade: "Junior", position: "Attack", dad: "Jamie Wiles", mom: "Cheri Wiles", bio: "" },
-    "Jane Iams": { number: 15, grade: "Junior", position: "Defense", dad: "Andy Iams", mom: "Casie Iams", bio: "" },
+    "Jane Iams": { number: 15, grade: "Junior", position: "Defense", dad: "Andy Iams", mom: "Casie Iams", bio: "", note: "(Wears #4 in Gold)" },
     "Claire Iams": { number: 16, grade: "Junior", position: "Midfield", dad: "Andy Iams", mom: "Casie Iams", bio: "" },
     "Tori Maurer": { number: 99, grade: "Junior", position: "Goalie", dad: "Justin Maurer", mom: "Nancy Maurer", bio: "" },
     "Morgan Falor": { number: 8, grade: "Sophomore", position: "Midfield", dad: "Doug Falor", mom: "Barbie Falor", bio: "" },
@@ -2169,7 +2175,7 @@ const playerProfiles = {
     "Brooklyn Backes": { number: 19, grade: "Freshman", position: "Attack", dad: "Jeff Backes", mom: "Marissa Backes", bio: "" },
     "Madi Bean": { number: 23, grade: "Freshman", position: "Attack", dad: "Bob Bean", mom: "Jessica Bean", bio: "" },
     "Alivia Xiong": { number: 26, grade: "Sophomore", position: "Midfield", dad: "Sean Xiong", mom: "Linlin Xiao", bio: "" },
-    "Addison Brownfield": { number: 95, grade: "Junior", position: "Goalie", dad: "", mom: "", bio: "" }
+    "Addison Brownfield": { number: 95, grade: "Junior", position: "Goalie", dad: "Joe Brownfield", mom: "Darcy Heppner", bio: "" }
 };
 
 // Player headshot photo mapping (number → filename)
@@ -2224,6 +2230,7 @@ function buildProfileHTML(name) {
             <div class="profile-info">
                 <div class="profile-name">${name}</div>
                 <div class="profile-number">${p.number ? '#' + p.number + ' · ' : ''}${p.grade} · ${p.position}</div>
+                ${p.note ? `<div class="profile-note">${p.note}</div>` : ''}
                 <div class="profile-parents">${parents.join('&nbsp;&nbsp;|&nbsp;&nbsp;')}</div>
                 <div class="profile-bio">${p.bio}</div>
             </div>
