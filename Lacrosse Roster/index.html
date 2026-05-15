@@ -2070,6 +2070,119 @@
     </div>
 </div>
 
+<!-- ===== EMAIL SUBSCRIBE ===== -->
+<style>
+.subscribe-section { padding: 18px 16px 24px; }
+.subscribe-card {
+    max-width: 720px; margin: 0 auto;
+    background: #fff; border-radius: 12px; padding: 24px 22px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    border-top: 4px solid var(--gold);
+}
+.subscribe-eyebrow {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px; letter-spacing: 2px; font-weight: 600;
+    color: var(--gold-dark); text-transform: uppercase; margin-bottom: 4px;
+}
+.subscribe-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: 22px; font-weight: 700; color: var(--black);
+    margin-bottom: 6px; letter-spacing: 0.5px;
+}
+.subscribe-sub {
+    color: var(--gray-700); font-size: 13px; line-height: 1.5;
+    margin-bottom: 14px;
+}
+.subscribe-form {
+    display: flex; gap: 8px; flex-wrap: wrap;
+}
+.subscribe-form input {
+    flex: 1 1 200px; min-width: 0;
+    padding: 10px 12px;
+    border: 2px solid var(--gray-200);
+    border-radius: 8px;
+    font-size: 14px; font-family: inherit;
+    background: #fff; color: var(--gray-900);
+}
+.subscribe-form input:focus { outline: none; border-color: var(--gold); }
+.subscribe-form button {
+    padding: 10px 18px; background: var(--black); color: var(--gold);
+    border: none; border-radius: 8px; font-weight: 700; font-size: 14px;
+    cursor: pointer; font-family: 'Oswald', sans-serif; letter-spacing: 0.5px;
+    transition: background 0.15s;
+}
+.subscribe-form button:hover { background: var(--gray-700); }
+.subscribe-form button:disabled { opacity: 0.6; cursor: not-allowed; }
+.subscribe-status {
+    margin-top: 10px; font-size: 13px; line-height: 1.4;
+    min-height: 18px;
+}
+.subscribe-status.ok { color: #16a34a; }
+.subscribe-status.err { color: #dc2626; }
+@media (max-width: 480px) {
+    .subscribe-form { flex-direction: column; }
+    .subscribe-form button { width: 100%; }
+}
+</style>
+<div class="subscribe-section">
+    <div class="subscribe-card">
+        <div class="subscribe-eyebrow">Stay in the loop</div>
+        <div class="subscribe-title">Get bracket update emails</div>
+        <div class="subscribe-sub">
+            Drop your email and you'll get a digest whenever new playoff scores come in &mdash; capped at one email per hour. Unsubscribe anytime.
+        </div>
+        <form class="subscribe-form" id="subscribeForm" autocomplete="on">
+            <input type="text" id="subName" name="name" placeholder="Your name" autocomplete="name" required>
+            <input type="email" id="subEmail" name="email" placeholder="you@email.com" autocomplete="email" required>
+            <button type="submit" id="subBtn">Subscribe</button>
+        </form>
+        <div class="subscribe-status" id="subStatus"></div>
+    </div>
+</div>
+<script>
+(function () {
+    var form = document.getElementById('subscribeForm');
+    var btn = document.getElementById('subBtn');
+    var statusEl = document.getElementById('subStatus');
+    if (!form) return;
+
+    form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        var name = document.getElementById('subName').value.trim();
+        var email = document.getElementById('subEmail').value.trim();
+        if (!name || !email) return;
+
+        btn.disabled = true;
+        btn.textContent = 'Subscribing...';
+        statusEl.textContent = '';
+        statusEl.className = 'subscribe-status';
+
+        try {
+            var res = await fetch('https://vh-api.charles-9e5.workers.dev/lacrosse/subscribers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name, email: email })
+            });
+            var data = await res.json();
+            if (res.ok && data.ok) {
+                statusEl.textContent = data.message || 'Subscribed!';
+                statusEl.className = 'subscribe-status ok';
+                form.reset();
+            } else {
+                statusEl.textContent = (data && data.error) || 'Could not subscribe — please try again.';
+                statusEl.className = 'subscribe-status err';
+            }
+        } catch (err) {
+            statusEl.textContent = 'Network error — please try again.';
+            statusEl.className = 'subscribe-status err';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Subscribe';
+        }
+    });
+})();
+</script>
+
 <!-- ===== FOOTER ===== -->
 <div class="footer">
     <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9InNoYWZ0IiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3R5bGU9InN0b3AtY29sb3I6I0Y3QzQxNCIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiNENEEzMEUiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDwhLS0gTGVmdCBzdGljayAoYW5nbGVkIGZyb20gYm90dG9tLWxlZnQgdG8gdG9wLXJpZ2h0KSAtLT4KICA8ZyB0cmFuc2Zvcm09InJvdGF0ZSgtMzUsIDEwMCwgMTAwKSI+CiAgICA8IS0tIFNoYWZ0IC0tPgogICAgPHJlY3QgeD0iOTUiIHk9IjQ1IiB3aWR0aD0iMTAiIGhlaWdodD0iMTUwIiByeD0iNCIgZmlsbD0idXJsKCNzaGFmdCkiIHN0cm9rZT0iIzFhMWExYSIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgICA8IS0tIEhlYWQgZnJhbWUgLS0+CiAgICA8ZWxsaXBzZSBjeD0iMTAwIiBjeT0iNDIiIHJ4PSIyMiIgcnk9IjMyIiBmaWxsPSJub25lIiBzdHJva2U9IiNGN0M0MTQiIHN0cm9rZS13aWR0aD0iNCIvPgogICAgPGVsbGlwc2UgY3g9IjEwMCIgY3k9IjQyIiByeD0iMjIiIHJ5PSIzMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMWExYTFhIiBzdHJva2Utd2lkdGg9IjEuNSIvPgogICAgPCEtLSBNZXNoL3BvY2tldCBsaW5lcyAtLT4KICAgIDxsaW5lIHgxPSI4NCIgeTE9IjMwIiB4Mj0iMTE2IiB5Mj0iMzAiIHN0cm9rZT0iIzFhMWExYSIgc3Ryb2tlLXdpZHRoPSIxIiBvcGFjaXR5PSIwLjUiLz4KICAgIDxsaW5lIHgxPSI4MiIgeTE9IjQwIiB4Mj0iMTE4IiB5Mj0iNDAiIHN0cm9rZT0iIzFhMWExYSIgc3Ryb2tlLXdpZHRoPSIxIiBvcGFjaXR5PSIwLjUiLz4KICAgIDxsaW5lIHgxPSI4NCIgeTE9IjUwIiB4Mj0iMTE2IiB5Mj0iNTAiIHN0cm9rZT0iIzFhMWExYSIgc3Ryb2tlLXdpZHRoPSIxIiBvcGFjaXR5PSIwLjUiLz4KICAgIDxsaW5lIHgxPSI5MCIgeTE9IjE0IiB4Mj0iODgiIHkyPSI2MCIgc3Ryb2tlPSIjMWExYTFhIiBzdHJva2Utd2lkdGg9IjAuOCIgb3BhY2l0eT0iMC40Ii8+CiAgICA8bGluZSB4MT0iMTAwIiB5MT0iMTAiIHgyPSIxMDAiIHkyPSI2MiIgc3Ryb2tlPSIjMWExYTFhIiBzdHJva2Utd2lkdGg9IjAuOCIgb3BhY2l0eT0iMC40Ii8+CiAgICA8bGluZSB4MT0iMTEwIiB5MT0iMTQiIHgyPSIxMTIiIHkyPSI2MCIgc3Ryb2tlPSIjMWExYTFhIiBzdHJva2Utd2lkdGg9IjAuOCIgb3BhY2l0eT0iMC40Ii8+CiAgPC9nPgogIDwhLS0gUmlnaHQgc3RpY2sgKGFuZ2xlZCBmcm9tIGJvdHRvbS1yaWdodCB0byB0b3AtbGVmdCkgLS0+CiAgPGcgdHJhbnNmb3JtPSJyb3RhdGUoMzUsIDEwMCwgMTAwKSI+CiAgICA8IS0tIFNoYWZ0IC0tPgogICAgPHJlY3QgeD0iOTUiIHk9IjQ1IiB3aWR0aD0iMTAiIGhlaWdodD0iMTUwIiByeD0iNCIgZmlsbD0idXJsKCNzaGFmdCkiIHN0cm9rZT0iIzFhMWExYSIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgICA8IS0tIEhlYWQgZnJhbWUgLS0+CiAgICA8ZWxsaXBzZSBjeD0iMTAwIiBjeT0iNDIiIHJ4PSIyMiIgcnk9IjMyIiBmaWxsPSJub25lIiBzdHJva2U9IiNGN0M0MTQiIHN0cm9rZS13aWR0aD0iNCIvPgogICAgPGVsbGlwc2UgY3g9IjEwMCIgY3k9IjQyIiByeD0iMjIiIHJ5PSIzMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMWExYTFhIiBzdHJva2Utd2lkdGg9IjEuNSIvPgogICAgPCEtLSBNZXNoL3BvY2tldCBsaW5lcyAtLT4KICAgIDxsaW5lIHgxPSI4NCIgeTE9IjMwIiB4Mj0iMTE2IiB5Mj0iMzAiIHN0cm9rZT0iIzFhMWExYSIgc3Ryb2tlLXdpZHRoPSIxIiBvcGFjaXR5PSIwLjUiLz4KICAgIDxsaW5lIHgxPSI4MiIgeTE9IjQwIiB4Mj0iMTE4IiB5Mj0iNDAiIHN0cm9rZT0iIzFhMWExYSIgc3Ryb2tlLXdpZHRoPSIxIiBvcGFjaXR5PSIwLjUiLz4KICAgIDxsaW5lIHgxPSI4NCIgeTE9IjUwIiB4Mj0iMTE2IiB5Mj0iNTAiIHN0cm9rZT0iIzFhMWExYSIgc3Ryb2tlLXdpZHRoPSIxIiBvcGFjaXR5PSIwLjUiLz4KICAgIDxsaW5lIHgxPSI5MCIgeTE9IjE0IiB4Mj0iODgiIHkyPSI2MCIgc3Ryb2tlPSIjMWExYTFhIiBzdHJva2Utd2lkdGg9IjAuOCIgb3BhY2l0eT0iMC40Ii8+CiAgICA8bGluZSB4MT0iMTAwIiB5MT0iMTAiIHgyPSIxMDAiIHkyPSI2MiIgc3Ryb2tlPSIjMWExYTFhIiBzdHJva2Utd2lkdGg9IjAuOCIgb3BhY2l0eT0iMC40Ii8+CiAgICA8bGluZSB4MT0iMTEwIiB5MT0iMTQiIHgyPSIxMTIiIHkyPSI2MCIgc3Ryb2tlPSIjMWExYTFhIiBzdHJva2Utd2lkdGg9IjAuOCIgb3BhY2l0eT0iMC40Ii8+CiAgPC9nPgo8L3N2Zz4=" alt="" class="footer-sticks" />
