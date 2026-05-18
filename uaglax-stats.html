@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>UAGLAX Stat-Keeper</title>
+<style>
+  /* ─── Reset & base ─── */
+  *,*:before,*:after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html,body { height:100%; width:100%; overflow:hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select:none; -webkit-user-select:none; }
+  body { background:#0d1117; color:#e6edf3; font-size:16px; }
+  button { font-family:inherit; cursor:pointer; border:0; background:none; color:inherit; }
+
+  /* ─── Login screen ─── */
+  #login { position:fixed; inset:0; background:#0d1117; display:flex; align-items:center; justify-content:center; z-index:200; }
+  #login-card { background:#161b22; border:1px solid #30363d; border-radius:12px; padding:40px 48px; text-align:center; max-width:420px; width:90%; }
+  #login-card h1 { font-size:24px; font-weight:700; margin-bottom:8px; color:#F7C414; letter-spacing:.5px; }
+  #login-card p { color:#8b949e; font-size:14px; margin-bottom:24px; }
+  #login-card input { width:100%; padding:14px 16px; font-size:18px; border-radius:8px; border:1px solid #30363d; background:#0d1117; color:#e6edf3; text-align:center; letter-spacing:6px; }
+  #login-card input:focus { outline:none; border-color:#F7C414; }
+  #login-card button { width:100%; margin-top:16px; padding:14px; background:#F7C414; color:#0d1117; font-size:16px; font-weight:600; border-radius:8px; }
+  #login-card button:disabled { opacity:.5; cursor:not-allowed; }
+  #login-error { color:#f85149; font-size:14px; margin-top:12px; min-height:20px; }
+
+  /* ─── Game picker screen ─── */
+  #game-picker { position:fixed; inset:0; background:#0d1117; display:none; flex-direction:column; z-index:150; padding:24px; }
+  #game-picker.show { display:flex; }
+  #game-picker h1 { font-size:22px; color:#F7C414; margin-bottom:16px; }
+  #game-list { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .game-row { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:16px 20px; margin-bottom:10px; display:flex; align-items:center; gap:16px; }
+  .game-row:active { background:#21262d; }
+  .game-date { background:#21262d; padding:8px 12px; border-radius:6px; font-size:13px; min-width:80px; text-align:center; color:#7d8590; }
+  .game-info { flex:1; }
+  .game-opponent { font-size:18px; font-weight:600; }
+  .game-meta { font-size:13px; color:#7d8590; margin-top:2px; }
+  .game-status { font-size:12px; padding:4px 10px; border-radius:4px; font-weight:600; }
+  .game-status.live { background:#f8514920; color:#f85149; }
+  .game-status.final { background:#3fb95020; color:#3fb950; }
+  .game-status.upcoming { background:#21262d; color:#7d8590; }
+  #game-picker button.refresh { position:absolute; top:24px; right:24px; background:#161b22; border:1px solid #30363d; padding:8px 14px; border-radius:6px; font-size:14px; color:#8b949e; }
+
+  /* ─── Main app layout ─── */
+  #app { display:none; flex-direction:column; height:100vh; }
+  #app.show { display:flex; }
+
+  /* Top bar */
+  #topbar { background:#161b22; border-bottom:2px solid #30363d; padding:10px 16px; display:flex; align-items:center; gap:16px; flex-shrink:0; min-height:72px; }
+  .score-block { display:flex; align-items:center; gap:8px; }
+  .score-block .team { font-size:18px; font-weight:700; }
+  .score-block .score { font-size:32px; font-weight:800; min-width:46px; text-align:center; }
+  .score-ua { color:#F7C414; }
+  .score-opp { color:#f85149; }
+  .vs { color:#7d8590; font-size:18px; }
+  #period-clock { flex:1; display:flex; align-items:center; justify-content:center; gap:14px; font-size:18px; }
+  .period-pill { background:#21262d; padding:6px 14px; border-radius:6px; font-weight:600; cursor:pointer; }
+  .period-pill:active { background:#30363d; }
+  .clock-display { font-family:'Menlo','SF Mono',monospace; font-size:24px; font-weight:600; min-width:84px; text-align:center; cursor:pointer; }
+  .clock-display:active { background:#21262d; border-radius:4px; }
+  .topbar-actions { display:flex; gap:8px; }
+  .topbar-actions button { background:#21262d; padding:10px 16px; border-radius:8px; font-size:14px; font-weight:600; border:1px solid #30363d; }
+  .topbar-actions button:active { background:#30363d; }
+  .topbar-actions button.undo { background:#f8514920; color:#f85149; border-color:#f8514940; }
+  .topbar-actions button.undo:disabled { opacity:.4; cursor:not-allowed; }
+
+  /* Main work area */
+  #workarea { flex:1; display:grid; grid-template-columns: 2fr 1fr; min-height:0; }
+
+  /* Stat button grid */
+  #stat-grid { padding:16px; display:grid; grid-template-columns:1fr 1fr 1fr; grid-template-rows:1fr 1fr 1fr; gap:12px; }
+  .stat-btn {
+    background:#161b22; border:2px solid #30363d; border-radius:12px;
+    font-size:22px; font-weight:700; letter-spacing:.5px;
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column; text-align:center; min-height:88px;
+    transition: transform .05s ease, background .12s ease;
+  }
+  .stat-btn:active { transform:scale(.97); }
+  .stat-btn.goal { background:#3fb95020; border-color:#3fb95080; color:#3fb950; }
+  .stat-btn.assist { background:#3fb95010; border-color:#3fb95060; color:#7ee787; }
+  .stat-btn.shot { background:#388bfd15; border-color:#388bfd80; color:#79c0ff; }
+  .stat-btn.sog { background:#388bfd25; border-color:#388bfd; color:#388bfd; }
+  .stat-btn.gb { background:#d2992210; border-color:#d2992260; color:#e3b341; }
+  .stat-btn.draw { background:#a371f710; border-color:#a371f780; color:#bc8cff; }
+  .stat-btn.ct { background:#db6d2810; border-color:#db6d2880; color:#ff9b50; }
+  .stat-btn.save { background:#2ea04310; border-color:#3fb95080; color:#56d364; }
+  .stat-btn.opp { background:#f8514920; border-color:#f85149; color:#f85149; }
+  .stat-btn small { font-size:13px; font-weight:500; opacity:.8; margin-top:4px; letter-spacing:0; }
+
+  /* Event feed */
+  #feed-pane { background:#0d1117; border-left:1px solid #30363d; display:flex; flex-direction:column; min-height:0; }
+  #feed-header { padding:10px 16px; border-bottom:1px solid #30363d; font-size:13px; color:#7d8590; text-transform:uppercase; letter-spacing:1px; display:flex; justify-content:space-between; align-items:center; }
+  #feed { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .feed-row { padding:10px 16px; border-bottom:1px solid #21262d; font-size:14px; display:flex; gap:10px; align-items:center; }
+  .feed-row .ft-clock { color:#7d8590; font-size:12px; font-family:'Menlo','SF Mono',monospace; min-width:54px; }
+  .feed-row .ft-stat { font-weight:600; min-width:60px; font-size:13px; }
+  .feed-row .ft-player { flex:1; }
+  .feed-row.queued { background:#d2992210; }
+  .feed-row.failed { background:#f8514920; }
+  .feed-empty { padding:30px; text-align:center; color:#484f58; }
+
+  /* Status bar */
+  #statusbar { background:#161b22; border-top:1px solid #30363d; padding:6px 16px; font-size:12px; color:#7d8590; display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
+  .sync-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#3fb950; vertical-align:middle; }
+  .sync-dot.queued { background:#e3b341; animation:pulse 1.4s infinite; }
+  .sync-dot.failed { background:#f85149; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+
+  /* ─── Player picker modal ─── */
+  #picker { position:fixed; inset:0; background:rgba(0,0,0,.85); display:none; align-items:center; justify-content:center; z-index:100; }
+  #picker.show { display:flex; }
+  #picker-card { background:#161b22; border:1px solid #30363d; border-radius:16px; padding:20px; max-width:96%; max-height:92%; display:flex; flex-direction:column; min-width:600px; }
+  #picker-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  #picker-header h2 { font-size:20px; }
+  #picker-header .stat-badge { padding:6px 14px; border-radius:6px; font-weight:700; font-size:14px; background:#F7C414; color:#0d1117; }
+  #picker-close { background:#21262d; padding:8px 14px; border-radius:6px; font-size:14px; }
+  #picker-grid { display:grid; grid-template-columns:repeat(6, 1fr); gap:8px; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:6px; }
+  .player-card {
+    background:#21262d; border:2px solid transparent; border-radius:10px; padding:10px 8px;
+    display:flex; flex-direction:column; align-items:center; gap:4px; min-height:92px;
+    transition: transform .05s ease;
+  }
+  .player-card:active { transform:scale(.96); }
+  .player-card.attack { border-color:#f8514950; }
+  .player-card.midfield { border-color:#e3b34150; }
+  .player-card.defense { border-color:#388bfd50; }
+  .player-card.goalie { border-color:#3fb95050; background:#3fb95015; }
+  .player-jersey { font-size:24px; font-weight:800; font-family:'Menlo','SF Mono',monospace; }
+  .player-name { font-size:11px; color:#7d8590; text-align:center; line-height:1.2; }
+  .player-cap { color:#F7C414; font-size:10px; margin-top:1px; }
+
+  /* ─── Settings sheet (period/clock controls) ─── */
+  #settings { position:fixed; inset:0; background:rgba(0,0,0,.7); display:none; align-items:flex-end; justify-content:center; z-index:90; }
+  #settings.show { display:flex; }
+  #settings-card { background:#161b22; border-radius:16px 16px 0 0; padding:20px 24px 32px; width:100%; max-width:720px; }
+  #settings-card h3 { font-size:18px; margin-bottom:16px; }
+  .setting-row { display:flex; align-items:center; gap:14px; padding:12px 0; border-bottom:1px solid #21262d; }
+  .setting-row label { flex:1; font-size:15px; color:#c9d1d9; }
+  .setting-row input, .setting-row select { background:#0d1117; border:1px solid #30363d; color:#e6edf3; padding:10px 14px; border-radius:8px; font-size:16px; min-width:120px; }
+  .setting-row .period-btn { background:#21262d; border:1px solid #30363d; padding:10px 18px; border-radius:8px; font-size:15px; font-weight:600; }
+  .setting-row .period-btn.active { background:#F7C414; color:#0d1117; border-color:#F7C414; }
+  #settings-actions { display:flex; gap:10px; margin-top:20px; }
+  #settings-actions button { flex:1; padding:14px; border-radius:8px; font-size:15px; font-weight:600; }
+  #settings-card .close-btn { background:#21262d; border:1px solid #30363d; }
+  #settings-card .end-btn { background:#f8514920; color:#f85149; border:1px solid #f85149; }
+  #settings-card .logout-btn { background:#21262d; color:#7d8590; border:1px solid #30363d; }
+
+  /* ─── Toast ─── */
+  #toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#161b22; border:1px solid #30363d; padding:12px 20px; border-radius:10px; color:#e6edf3; opacity:0; transition:opacity .2s; pointer-events:none; z-index:300; }
+  #toast.show { opacity:1; }
+</style>
+</head>
+<body>
+
+<!-- ─── Login screen ─── -->
+<div id="login">
+  <div id="login-card">
+    <h1>UAGLAX STAT-KEEPER</h1>
+    <p>Enter the PIN to log stats during a game.</p>
+    <input id="pin-input" type="tel" maxlength="8" placeholder="••••" autocomplete="off" inputmode="numeric">
+    <button id="pin-submit">Continue</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- ─── Game picker ─── -->
+<div id="game-picker">
+  <button class="refresh" onclick="loadGames()">↻ Refresh</button>
+  <h1>Select a game</h1>
+  <div id="game-list"><div class="feed-empty">Loading games…</div></div>
+</div>
+
+<!-- ─── Main app ─── -->
+<div id="app">
+  <div id="topbar">
+    <div class="score-block">
+      <span class="team score-ua">UA</span>
+      <span class="score score-ua" id="ua-score">0</span>
+    </div>
+    <span class="vs">–</span>
+    <div class="score-block">
+      <span class="score score-opp" id="opp-score">0</span>
+      <span class="team score-opp" id="opp-name">OPP</span>
+    </div>
+    <div id="period-clock">
+      <span class="period-pill" id="period-pill" onclick="openSettings()">P1</span>
+      <span class="clock-display" id="clock-display" onclick="openSettings()">00:00</span>
+    </div>
+    <div class="topbar-actions">
+      <button class="undo" id="undo-btn" onclick="undoLast()" disabled>↶ UNDO</button>
+      <button onclick="openSettings()">⚙</button>
+    </div>
+  </div>
+  <div id="workarea">
+    <div id="stat-grid">
+      <button class="stat-btn goal" onclick="selectStat('Goal')">GOAL</button>
+      <button class="stat-btn assist" onclick="selectStat('Assist')">ASSIST</button>
+      <button class="stat-btn shot" onclick="selectStat('Shot')">SHOT</button>
+      <button class="stat-btn sog" onclick="selectStat('SOG')">SOG<small>shot on goal</small></button>
+      <button class="stat-btn gb" onclick="selectStat('Ground Ball')">GB<small>ground ball</small></button>
+      <button class="stat-btn draw" onclick="selectStat('Draw Control')">DRAW<small>control</small></button>
+      <button class="stat-btn ct" onclick="selectStat('Caused Turnover')">CT<small>caused TO</small></button>
+      <button class="stat-btn save" onclick="selectStat('Save')">SAVE<small>goalie</small></button>
+      <button class="stat-btn opp" onclick="logOppGoal()">OPP GOAL</button>
+    </div>
+    <div id="feed-pane">
+      <div id="feed-header"><span>Live events</span><span id="event-count">0</span></div>
+      <div id="feed"><div class="feed-empty">No events yet. Tap a stat to start.</div></div>
+    </div>
+  </div>
+  <div id="statusbar">
+    <span><span class="sync-dot" id="sync-dot"></span> <span id="sync-status">Synced</span></span>
+    <span id="game-label"></span>
+  </div>
+</div>
+
+<!-- ─── Player picker ─── -->
+<div id="picker" onclick="closePickerIfBackdrop(event)">
+  <div id="picker-card">
+    <div id="picker-header">
+      <h2>Select player</h2>
+      <span class="stat-badge" id="picker-stat">GOAL</span>
+      <button id="picker-close" onclick="closePicker()">Cancel</button>
+    </div>
+    <div id="picker-grid"></div>
+  </div>
+</div>
+
+<!-- ─── Settings sheet ─── -->
+<div id="settings" onclick="closeSettingsIfBackdrop(event)">
+  <div id="settings-card">
+    <h3>Game controls</h3>
+    <div class="setting-row">
+      <label>Period</label>
+      <button class="period-btn" data-period="1" onclick="setPeriod(1)">1st Half</button>
+      <button class="period-btn" data-period="2" onclick="setPeriod(2)">2nd Half</button>
+      <button class="period-btn" data-period="3" onclick="setPeriod(3)">OT</button>
+    </div>
+    <div class="setting-row">
+      <label>Clock</label>
+      <input id="clock-input" type="text" placeholder="12:34" maxlength="5">
+    </div>
+    <div id="settings-actions">
+      <button class="close-btn" onclick="closeSettings()">Done</button>
+      <button class="end-btn" onclick="endGame()">End Game</button>
+      <button class="logout-btn" onclick="logout()">Switch game</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ============================================================================
+//   Config + state
+// ============================================================================
+// Same worker base the rest of the UAGLAX roster app uses. Override in the
+// browser console if you ever need to point this at a different worker:
+//   localStorage.setItem('uaglaxApiBase', 'https://your-worker.workers.dev')
+const API_BASE = (function () {
+  const o = localStorage.getItem('uaglaxApiBase');
+  if (o) return o.replace(/\/$/, '');
+  return 'https://vh-api.charles-9e5.workers.dev';
+})();
+
+const state = {
+  pin: localStorage.getItem('uaglaxPin') || '',
+  game: null,           // { recordId, opponent, ... }
+  roster: [],           // array of player objects
+  events: [],           // current game events (server-confirmed + local queue)
+  period: 1,
+  clock: '25:00',
+  pendingStat: null,    // stat type awaiting player selection
+  syncing: false
+};
+
+// localStorage keys: per-game queue
+const queueKey = function () { return state.game ? 'uaglaxQueue::' + state.game.recordId : null; };
+
+// ============================================================================
+//   Utility
+// ============================================================================
+function $(id) { return document.getElementById(id); }
+function fmtClock(s) {
+  if (typeof s !== 'string') return '--:--';
+  return s;
+}
+function toast(msg, ms) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function () { el.classList.remove('show'); }, ms || 1800);
+}
+function uuid() { return 'tmp-' + Math.random().toString(36).slice(2) + '-' + Date.now(); }
+
+// ============================================================================
+//   Login
+// ============================================================================
+$('pin-submit').addEventListener('click', tryLogin);
+$('pin-input').addEventListener('keydown', function (e) { if (e.key === 'Enter') tryLogin(); });
+
+async function tryLogin() {
+  const pin = $('pin-input').value.trim();
+  if (!pin) return;
+  $('pin-submit').disabled = true;
+  $('login-error').textContent = '';
+  // Probe the events endpoint with a deliberately-invalid gameId; if PIN's bad
+  // we'll get 401; if PIN's good we'll get 400 (validation). Either way no data
+  // is touched.
+  try {
+    const res = await fetch(API_BASE + '/lacrosse/stats/events?gameId=recXXXXXXXXXXXXXXX', {
+      headers: { 'X-UAGLAX-PIN': pin }
+    });
+    if (res.status === 401) {
+      $('login-error').textContent = 'Wrong PIN — try again.';
+      $('pin-submit').disabled = false;
+      return;
+    }
+    // 400 (bad gameId) means PIN was accepted
+    state.pin = pin;
+    localStorage.setItem('uaglaxPin', pin);
+    $('login').style.display = 'none';
+    showGamePicker();
+  } catch (err) {
+    $('login-error').textContent = 'Network error: ' + err.message;
+    $('pin-submit').disabled = false;
+  }
+}
+
+if (state.pin) {
+  // Skip the form; verify the stored PIN by fetching the game list
+  $('login').style.display = 'none';
+  showGamePicker();
+}
+
+// ============================================================================
+//   Game picker
+// ============================================================================
+function showGamePicker() {
+  $('game-picker').classList.add('show');
+  loadGames();
+}
+async function loadGames() {
+  $('game-list').innerHTML = '<div class="feed-empty">Loading games…</div>';
+  try {
+    const res = await fetch(API_BASE + '/lacrosse/stats/games');
+    const data = await res.json();
+    const games = data.games || [];
+    if (!games.length) {
+      $('game-list').innerHTML = '<div class="feed-empty">No games on the Schedule.</div>';
+      return;
+    }
+    $('game-list').innerHTML = '';
+    games.forEach(function (g) {
+      const row = document.createElement('div');
+      row.className = 'game-row';
+      let badge = 'upcoming';
+      let badgeText = 'Upcoming';
+      if (g.final) { badge = 'final'; badgeText = 'Final'; }
+      else if (g.ourScore !== null || g.opponentScore !== null) { badge = 'live'; badgeText = 'In progress'; }
+      const dateLabel = g.date ? new Date(g.date + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' }) : 'TBD';
+      row.innerHTML =
+        '<div class="game-date">' + dateLabel + '</div>' +
+        '<div class="game-info">' +
+          '<div class="game-opponent">' + (g.homeAway === 'Away' ? '@ ' : 'vs ') + (g.opponent || 'TBD') + '</div>' +
+          '<div class="game-meta">' + (g.time || '') + (g.location ? ' • ' + g.location : '') + '</div>' +
+        '</div>' +
+        '<div class="game-status ' + badge + '">' + badgeText + '</div>';
+      row.onclick = function () { selectGame(g); };
+      $('game-list').appendChild(row);
+    });
+  } catch (err) {
+    $('game-list').innerHTML = '<div class="feed-empty">Failed to load: ' + err.message + '</div>';
+  }
+}
+function selectGame(g) {
+  state.game = g;
+  $('opp-name').textContent = (g.opponent || 'OPP').toUpperCase().slice(0, 8);
+  $('game-label').textContent = (g.homeAway === 'Away' ? '@' : 'vs') + ' ' + (g.opponent || '');
+  $('game-picker').classList.remove('show');
+  $('app').classList.add('show');
+  loadRoster();
+  loadEvents();
+  flushQueue();
+}
+
+// ============================================================================
+//   Roster
+// ============================================================================
+async function loadRoster() {
+  try {
+    const res = await fetch(API_BASE + '/lacrosse/stats/roster');
+    const data = await res.json();
+    state.roster = data.players || [];
+  } catch (err) {
+    toast('Roster load failed: ' + err.message, 3000);
+  }
+}
+
+// ============================================================================
+//   Events: load, render, log, undo, queue
+// ============================================================================
+async function loadEvents() {
+  if (!state.game) return;
+  try {
+    const res = await fetch(API_BASE + '/lacrosse/stats/events?gameId=' + state.game.recordId, {
+      headers: { 'X-UAGLAX-PIN': state.pin }
+    });
+    if (!res.ok) {
+      console.warn('Events load failed', res.status);
+      renderFeed();
+      return;
+    }
+    const data = await res.json();
+    state.events = (data.events || []).map(function (e) { e._synced = true; return e; });
+    // Merge any local queued events on top
+    const q = readQueue();
+    q.forEach(function (e) { state.events.push(e); });
+    renderFeed();
+    updateScore();
+  } catch (err) {
+    console.warn('Events load error', err);
+    renderFeed();
+  }
+}
+
+function selectStat(statType) {
+  if (!state.game) return;
+  state.pendingStat = statType;
+  openPicker(statType);
+}
+
+function logOppGoal() {
+  if (!state.game) return;
+  logEvent({ statType: 'Opp Goal', playerId: null });
+}
+
+async function logEvent(payload) {
+  // Optimistic: add to state immediately
+  const local = {
+    _localId: uuid(),
+    _synced: false,
+    _pending: true,
+    statType: payload.statType,
+    playerId: payload.playerId,
+    period: state.period,
+    clock: state.clock,
+    createdAt: new Date().toISOString()
+  };
+  // Look up player name for the feed display
+  if (payload.playerId) {
+    const p = state.roster.find(function (x) { return x.recordId === payload.playerId; });
+    if (p) {
+      local.playerName = p.name;
+      local.jersey = p.jersey;
+    }
+  }
+  state.events.push(local);
+  pushToQueue(local);
+  renderFeed();
+  updateScore();
+  flushQueue();
+}
+
+async function flushQueue() {
+  if (state.syncing) return;
+  state.syncing = true;
+  setSyncStatus();
+  let q = readQueue();
+  while (q.length) {
+    const evt = q[0];
+    try {
+      const res = await fetch(API_BASE + '/lacrosse/stats/events', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'X-UAGLAX-PIN': state.pin },
+        body: JSON.stringify({
+          gameId: state.game.recordId,
+          playerId: evt.playerId || undefined,
+          statType: evt.statType,
+          period: evt.period,
+          clock: evt.clock
+        })
+      });
+      if (!res.ok) {
+        if (res.status === 401) { toast('PIN rejected — please log in again'); logout(); state.syncing = false; return; }
+        console.warn('Event POST failed', res.status, await res.text());
+        // Leave in queue, mark failed on the in-memory event
+        const idx = state.events.findIndex(function (e) { return e._localId === evt._localId; });
+        if (idx >= 0) { state.events[idx]._pending = false; state.events[idx]._failed = true; }
+        break;
+      }
+      const data = await res.json();
+      // Confirm: replace local event with synced version
+      const idx = state.events.findIndex(function (e) { return e._localId === evt._localId; });
+      if (idx >= 0) {
+        state.events[idx].recordId = data.recordId;
+        state.events[idx]._synced = true;
+        state.events[idx]._pending = false;
+        state.events[idx]._failed = false;
+        state.events[idx].event = data.event;
+      }
+      q.shift();
+      writeQueue(q);
+    } catch (err) {
+      console.warn('Event POST exception', err);
+      const idx = state.events.findIndex(function (e) { return e._localId === evt._localId; });
+      if (idx >= 0) { state.events[idx]._pending = false; state.events[idx]._failed = true; }
+      break;
+    }
+  }
+  state.syncing = false;
+  setSyncStatus();
+  renderFeed();
+}
+
+function readQueue() {
+  const k = queueKey();
+  if (!k) return [];
+  try { return JSON.parse(localStorage.getItem(k) || '[]'); }
+  catch (e) { return []; }
+}
+function writeQueue(arr) {
+  const k = queueKey();
+  if (k) localStorage.setItem(k, JSON.stringify(arr || []));
+}
+function pushToQueue(evt) {
+  const q = readQueue();
+  q.push(evt);
+  writeQueue(q);
+}
+
+async function undoLast() {
+  // Find the most recent event we own (synced or not)
+  let i = state.events.length - 1;
+  while (i >= 0) {
+    const e = state.events[i];
+    // Skip Opp Goals only if user wants — for now we allow undoing them
+    break;
+  }
+  if (i < 0) return;
+  const evt = state.events[i];
+
+  // If it's still in the queue (never synced), just remove locally
+  if (!evt._synced) {
+    let q = readQueue();
+    q = q.filter(function (x) { return x._localId !== evt._localId; });
+    writeQueue(q);
+    state.events.splice(i, 1);
+    renderFeed();
+    updateScore();
+    toast('Undone');
+    return;
+  }
+
+  // It's server-side — DELETE
+  try {
+    const res = await fetch(API_BASE + '/lacrosse/stats/events/' + evt.recordId, {
+      method: 'DELETE',
+      headers: { 'X-UAGLAX-PIN': state.pin }
+    });
+    if (!res.ok) {
+      toast('Undo failed: HTTP ' + res.status, 2500);
+      return;
+    }
+    state.events.splice(i, 1);
+    renderFeed();
+    updateScore();
+    toast('Undone');
+  } catch (err) {
+    toast('Undo error: ' + err.message, 2500);
+  }
+}
+
+function renderFeed() {
+  const feed = $('feed');
+  if (!state.events.length) {
+    feed.innerHTML = '<div class="feed-empty">No events yet. Tap a stat to start.</div>';
+    $('event-count').textContent = '0';
+    $('undo-btn').disabled = true;
+    return;
+  }
+  $('event-count').textContent = state.events.length;
+  $('undo-btn').disabled = false;
+  // Most recent first
+  const html = state.events.slice().reverse().map(function (e) {
+    let cls = 'feed-row';
+    if (e._failed) cls += ' failed';
+    else if (!e._synced) cls += ' queued';
+    const clock = 'P' + (e.period || '?') + ' ' + (e.clock || '--:--');
+    let player;
+    if (e.statType === 'Opp Goal') {
+      player = 'OPP';
+    } else if (e.playerName) {
+      player = (e.jersey ? '#' + e.jersey + ' ' : '') + (e.playerName.split(' ').pop() || '');
+    } else if (e.playerId) {
+      const p = state.roster.find(function (x) { return x.recordId === e.playerId; });
+      player = p ? '#' + p.jersey + ' ' + p.name.split(' ').pop() : '(unknown)';
+    } else {
+      player = '(none)';
+    }
+    return '<div class="' + cls + '">' +
+      '<span class="ft-clock">' + clock + '</span>' +
+      '<span class="ft-stat">' + e.statType + '</span>' +
+      '<span class="ft-player">' + player + '</span>' +
+      '</div>';
+  }).join('');
+  feed.innerHTML = html;
+}
+
+function updateScore() {
+  let ua = 0, opp = 0;
+  state.events.forEach(function (e) {
+    if (e.statType === 'Goal') ua++;
+    else if (e.statType === 'Opp Goal') opp++;
+  });
+  $('ua-score').textContent = ua;
+  $('opp-score').textContent = opp;
+}
+
+function setSyncStatus() {
+  const failed = state.events.filter(function (e) { return e._failed; }).length;
+  const queued = readQueue().length;
+  const dot = $('sync-dot');
+  const txt = $('sync-status');
+  if (failed > 0) { dot.className = 'sync-dot failed'; txt.textContent = failed + ' failed (will retry)'; }
+  else if (queued > 0 || state.syncing) { dot.className = 'sync-dot queued'; txt.textContent = state.syncing ? 'Syncing…' : queued + ' queued'; }
+  else { dot.className = 'sync-dot'; txt.textContent = 'Synced'; }
+}
+
+// Retry queue every 10s
+setInterval(function () { if (state.game) flushQueue(); }, 10000);
+// Retry when network comes back
+window.addEventListener('online', function () { if (state.game) flushQueue(); });
+
+// ============================================================================
+//   Player picker
+// ============================================================================
+function openPicker(statType) {
+  const grid = $('picker-grid');
+  $('picker-stat').textContent = statType.toUpperCase();
+  let players = state.roster.slice();
+  if (statType === 'Save') {
+    players = players.filter(function (p) { return p.position === 'Goalie'; });
+  }
+  // Sort: position groups (A/M/D/G), then jersey ascending
+  const posOrder = { 'Attack':1, 'Midfield':2, 'Defense':3, 'Goalie':4 };
+  players.sort(function (a, b) {
+    const po = (posOrder[a.position] || 9) - (posOrder[b.position] || 9);
+    if (po !== 0) return po;
+    return (a.jersey || 999) - (b.jersey || 999);
+  });
+  grid.innerHTML = players.map(function (p) {
+    const cls = (p.position || '').toLowerCase();
+    return '<div class="player-card ' + cls + '" onclick="pickPlayer(\'' + p.recordId + '\')">' +
+      '<div class="player-jersey">' + (p.jersey != null ? p.jersey : '–') + '</div>' +
+      '<div class="player-name">' + p.name + '</div>' +
+      (p.captain ? '<div class="player-cap">★</div>' : '') +
+      '</div>';
+  }).join('');
+  $('picker').classList.add('show');
+}
+function closePicker() {
+  $('picker').classList.remove('show');
+  state.pendingStat = null;
+}
+function closePickerIfBackdrop(e) {
+  if (e.target.id === 'picker') closePicker();
+}
+function pickPlayer(recordId) {
+  if (!state.pendingStat) return;
+  logEvent({ statType: state.pendingStat, playerId: recordId });
+  closePicker();
+}
+
+// ============================================================================
+//   Settings: period + clock + end game + logout
+// ============================================================================
+function openSettings() {
+  document.querySelectorAll('.period-btn').forEach(function (b) {
+    b.classList.toggle('active', parseInt(b.dataset.period, 10) === state.period);
+  });
+  $('clock-input').value = state.clock;
+  $('settings').classList.add('show');
+}
+function closeSettings() {
+  const clk = $('clock-input').value.trim();
+  if (/^\d{1,2}:\d{2}$/.test(clk)) state.clock = clk;
+  $('clock-display').textContent = state.clock;
+  $('settings').classList.remove('show');
+}
+function closeSettingsIfBackdrop(e) {
+  if (e.target.id === 'settings') closeSettings();
+}
+function setPeriod(p) {
+  state.period = p;
+  $('period-pill').textContent = p === 3 ? 'OT' : 'P' + p;
+  document.querySelectorAll('.period-btn').forEach(function (b) {
+    b.classList.toggle('active', parseInt(b.dataset.period, 10) === p);
+  });
+}
+function endGame() {
+  if (!confirm('End the game? You\'ll be returned to the game picker. Charles can mark the Schedule row as Final separately in Airtable.')) return;
+  state.game = null;
+  state.events = [];
+  $('settings').classList.remove('show');
+  $('app').classList.remove('show');
+  showGamePicker();
+}
+function logout() {
+  if (!confirm('Switch game / log out?')) return;
+  state.game = null;
+  state.events = [];
+  $('settings').classList.remove('show');
+  $('app').classList.remove('show');
+  showGamePicker();
+}
+
+// ============================================================================
+//   Init
+// ============================================================================
+$('clock-display').textContent = state.clock;
+$('period-pill').textContent = 'P' + state.period;
+</script>
+</body>
+</html>
