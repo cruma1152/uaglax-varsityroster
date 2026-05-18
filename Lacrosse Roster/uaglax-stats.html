@@ -233,7 +233,7 @@
       <button class="stat-btn sog" onclick="selectStat('SOG')">SOG<small>shot on goal</small></button>
       <button class="stat-btn draw" onclick="selectStat('Draw Control')">DRAW<small>control</small></button>
       <button class="stat-btn gb" onclick="selectStat('Ground Ball')">GB<small>ground ball</small></button>
-      <button class="stat-btn mgb" onclick="selectStat('Missed GB')">MGB<small>missed GB</small></button>
+      <button class="stat-btn mgb" onclick="logTeamStat('Missed GB')">MGB<small>missed GB</small></button>
       <button class="stat-btn ct" onclick="selectStat('Caused Turnover')">CT<small>caused TO</small></button>
       <button class="stat-btn save" onclick="selectStat('Save')">SAVE<small>goalie</small></button>
       <button class="stat-btn opp" onclick="logOppGoal()">OPP GOAL</button>
@@ -483,6 +483,12 @@ function logOppGoal() {
   logEvent({ statType: 'Opp Goal', playerId: null });
 }
 
+// Team-level stats (no player picker). Currently: Missed GB.
+function logTeamStat(statType) {
+  if (!state.game) return;
+  logEvent({ statType: statType, playerId: null });
+}
+
 async function logEvent(payload) {
   // Optimistic: add to state immediately
   const local = {
@@ -638,6 +644,8 @@ function renderFeed() {
     let player;
     if (e.statType === 'Opp Goal') {
       player = 'OPP';
+    } else if (e.statType === 'Missed GB') {
+      player = '—'; // team stat, no player attribution
     } else if (e.playerName) {
       player = (e.jersey ? '#' + e.jersey + ' ' : '') + (e.playerName.split(' ').pop() || '');
     } else if (e.playerId) {
