@@ -75,13 +75,13 @@
   /* Main work area */
   #workarea { flex:1; display:grid; grid-template-columns: 2fr 1fr; min-height:0; }
 
-  /* Stat button grid */
-  #stat-grid { padding:16px; display:grid; grid-template-columns:1fr 1fr 1fr; grid-template-rows:1fr 1fr 1fr; gap:12px; }
+  /* Stat button grid — 5x2 to fit the 10 stat types comfortably on iPad landscape */
+  #stat-grid { padding:14px; display:grid; grid-template-columns:repeat(5, 1fr); grid-template-rows:1fr 1fr; gap:10px; }
   .stat-btn {
     background:#161b22; border:2px solid #30363d; border-radius:12px;
-    font-size:22px; font-weight:700; letter-spacing:.5px;
+    font-size:20px; font-weight:700; letter-spacing:.5px;
     display:flex; align-items:center; justify-content:center;
-    flex-direction:column; text-align:center; min-height:88px;
+    flex-direction:column; text-align:center; min-height:84px;
     transition: transform .05s ease, background .12s ease;
   }
   .stat-btn:active { transform:scale(.97); }
@@ -90,6 +90,7 @@
   .stat-btn.shot { background:#388bfd15; border-color:#388bfd80; color:#79c0ff; }
   .stat-btn.sog { background:#388bfd25; border-color:#388bfd; color:#388bfd; }
   .stat-btn.gb { background:#d2992210; border-color:#d2992260; color:#e3b341; }
+  .stat-btn.mgb { background:#80582010; border-color:#80582060; color:#b58030; }
   .stat-btn.draw { background:#a371f710; border-color:#a371f780; color:#bc8cff; }
   .stat-btn.ct { background:#db6d2810; border-color:#db6d2880; color:#ff9b50; }
   .stat-btn.save { background:#2ea04310; border-color:#3fb95080; color:#56d364; }
@@ -230,8 +231,9 @@
       <button class="stat-btn assist" onclick="selectStat('Assist')">ASSIST</button>
       <button class="stat-btn shot" onclick="selectStat('Shot')">SHOT</button>
       <button class="stat-btn sog" onclick="selectStat('SOG')">SOG<small>shot on goal</small></button>
-      <button class="stat-btn gb" onclick="selectStat('Ground Ball')">GB<small>ground ball</small></button>
       <button class="stat-btn draw" onclick="selectStat('Draw Control')">DRAW<small>control</small></button>
+      <button class="stat-btn gb" onclick="selectStat('Ground Ball')">GB<small>ground ball</small></button>
+      <button class="stat-btn mgb" onclick="selectStat('Missed GB')">MGB<small>missed GB</small></button>
       <button class="stat-btn ct" onclick="selectStat('Caused Turnover')">CT<small>caused TO</small></button>
       <button class="stat-btn save" onclick="selectStat('Save')">SAVE<small>goalie</small></button>
       <button class="stat-btn opp" onclick="logOppGoal()">OPP GOAL</button>
