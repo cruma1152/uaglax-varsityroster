@@ -120,6 +120,20 @@
   .bar-fill { position:absolute; top:0; bottom:0; background:linear-gradient(90deg, #F7C414, #d29922); display:flex; align-items:center; padding:0 12px; font-weight:700; font-size:15px; color:#0d1117; min-width:36px; transition: width .4s ease; }
   .bar-value { width:54px; text-align:center; font-size:18px; font-weight:700; color:#F7C414; font-family:'SF Mono','Menlo',monospace; }
 
+  /* Split bar (won vs missed) — used for Ground Balls */
+  .bar-track.split { display:flex; }
+  .gb-won-seg, .gb-missed-seg {
+    height:100%; display:flex; align-items:center; padding:0 12px;
+    font-weight:700; font-size:15px; transition: width .4s ease;
+    overflow:hidden; white-space:nowrap;
+  }
+  .gb-won-seg { background:linear-gradient(90deg, #F7C414, #d29922); color:#0d1117; justify-content:flex-start; }
+  .gb-missed-seg { background:linear-gradient(90deg, #db5050, #8c2828); color:#fff; justify-content:flex-end; }
+  .bar-track.split.empty::after {
+    content: 'No GB attempts yet'; color:#484f58; font-size:13px;
+    align-self:center; padding:0 14px;
+  }
+
   /* Player leaderboards */
   #leaderboards { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; padding: 0 24px 18px; }
   .lb {
@@ -252,10 +266,12 @@
     </div>
     <div class="bar-row">
       <div class="bar-label">Ground Balls</div>
-      <div class="bar-track"><div class="bar-fill" id="bar-gb" style="width:0%">0</div></div>
-      <div class="bar-value" id="val-gb">0</div>
+      <div class="bar-track split" id="gb-track">
+        <div class="gb-won-seg" id="gb-won" style="width:0%"></div>
+        <div class="gb-missed-seg" id="gb-missed" style="width:0%"></div>
+      </div>
+      <div class="bar-value" id="val-gb">—</div>
     </div>
-    <div style="margin: -4px 0 8px 144px; font-size:12px; color:#7d8590;" id="gb-pct-line">No GB attempts yet</div>
     <div class="bar-row">
       <div class="bar-label">Caused TOs</div>
       <div class="bar-track"><div class="bar-fill" id="bar-ct" style="width:0%">0</div></div>
@@ -569,15 +585,26 @@ function renderAll() {
   $('bar-dc').style.width = scale(totals.dc) + '%';
   $('bar-dc').textContent = totals.dc;
   $('val-dc').textContent = totals.dc;
-  $('bar-gb').style.width = scale(totals.gb) + '%';
-  $('bar-gb').textContent = totals.gb;
-  $('val-gb').textContent = totals.gb;
-  // GB% sub-line: "X won, Y missed → Z% GB"
-  const gbLine = $('gb-pct-line');
-  if (totals.gb + totals.mgb === 0) {
-    gbLine.textContent = 'No GB attempts yet';
+  // Split GB bar: gold (won) on the left, red (missed) on the right.
+  // Segments sized proportionally to their share of total attempts.
+  const gbTotal = totals.gb + totals.mgb;
+  const gbWonEl = $('gb-won');
+  const gbMissedEl = $('gb-missed');
+  const gbTrack = $('gb-track');
+  if (gbTotal === 0) {
+    gbWonEl.style.width = '0%';  gbWonEl.textContent = '';
+    gbMissedEl.style.width = '0%'; gbMissedEl.textContent = '';
+    gbTrack.classList.add('empty');
+    $('val-gb').textContent = '—';
   } else {
-    gbLine.innerHTML = totals.gb + ' won · ' + totals.mgb + ' missed · <span style="color:#F7C414;font-weight:700">' + totals.gbPct + '% GB</span>';
+    const wonPct = (totals.gb / gbTotal) * 100;
+    const missedPct = 100 - wonPct;
+    gbWonEl.style.width = wonPct + '%';
+    gbWonEl.textContent = totals.gb > 0 ? totals.gb + ' won' : '';
+    gbMissedEl.style.width = missedPct + '%';
+    gbMissedEl.textContent = totals.mgb > 0 ? totals.mgb + ' missed' : '';
+    gbTrack.classList.remove('empty');
+    $('val-gb').textContent = totals.gbPct + '%';
   }
   $('bar-ct').style.width = scale(totals.ct) + '%';
   $('bar-ct').textContent = totals.ct;
