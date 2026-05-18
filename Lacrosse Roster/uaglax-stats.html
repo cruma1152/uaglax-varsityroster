@@ -273,6 +273,13 @@
   table.report-table tr.team-total td { padding-top:12px; padding-bottom:12px; }
   table.report-table tr.team-total td.name { color:#F7C414; }
 
+  /* Sortable column headers */
+  table.report-table th.sortable { cursor:pointer; user-select:none; -webkit-user-select:none; transition: color .12s ease; }
+  table.report-table th.sortable:hover { color:#e6edf3; }
+  table.report-table th.sortable:active { color:#F7C414; }
+  table.report-table th.sortable.sort-asc::after { content:' ↑'; color:#F7C414; font-weight:700; }
+  table.report-table th.sortable.sort-desc::after { content:' ↓'; color:#F7C414; font-weight:700; }
+
   /* Quarter splits table — same look as box score */
   .splits-table th.q-col { color:#F7C414; }
 
@@ -633,8 +640,27 @@ const state = {
   syncing: false,
   refreshTimer: null,
   activeQuarters: 'all',              // 'all' or Set of ints
-  pickerSort: localStorage.getItem('uaglaxPickerSort') || 'jersey'
+  pickerSort: localStorage.getItem('uaglaxPickerSort') || 'jersey',
+  reportSort: { col: 'jersey', dir: 'asc' }  // box-score sort state
 };
+
+// Sort defaults: text/pos columns default ascending; stats default descending (most-first)
+const REPORT_SORT_DEFAULT_DIR = {
+  jersey: 'asc', name: 'asc', pos: 'asc',
+  goal: 'desc', assist: 'desc', pts: 'desc',
+  shots: 'desc', sog: 'desc', shpct: 'desc',
+  gb: 'desc', dc: 'desc', ct: 'desc', save: 'desc'
+};
+
+function setReportSort(col) {
+  if (state.reportSort.col === col) {
+    state.reportSort.dir = state.reportSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    state.reportSort.col = col;
+    state.reportSort.dir = REPORT_SORT_DEFAULT_DIR[col] || 'desc';
+  }
+  renderReport();
+}
 
 function qLabel(q) { return q === 5 ? 'OT' : 'Q' + q; }
 function $(id) { return document.getElementById(id); }
@@ -1377,16 +1403,63 @@ function renderReport() {
   const filtered = filteredEvents();
   const { totals: tot, byPlayer } = aggregate(filtered);
   const tbl = $('boxscore-table');
+
+  // Render sortable headers with sort indicators
+  const sc = state.reportSort.col, sd = state.reportSort.dir;
+  const sortCls = function (col) { return sc === col ? ' sort-' + sd : ''; };
+  const th = function (col, label) {
+    return '<th class="sortable' + sortCls(col) + '" onclick="setReportSort(\'' + col + '\')">' + label + '</th>';
+  };
   tbl.querySelector('thead').innerHTML =
-    '<tr><th>#</th><th>Player</th><th>Pos</th>' +
-    '<th>G</th><th>A</th><th>Pts</th>' +
-    '<th>Sh</th><th>SOG</th><th>Sh%</th>' +
-    '<th>GB</th><th>DC</th><th>CT</th><th>Sv</th></tr>';
-  // Build rows for every roster player (so 0-stat players still appear). Sort by jersey.
+    '<tr>' +
+      th('jersey', '#') + th('name', 'Player') + th('pos', 'Pos') +
+      th('goal', 'G') + th('assist', 'A') + th('pts', 'Pts') +
+      th('shots', 'Sh') + th('sog', 'SOG') + th('shpct', 'Sh%') +
+      th('gb', 'GB') + th('dc', 'DC') + th('ct', 'CT') + th('save', 'Sv') +
+    '</tr>';
+
+  // Build rows for every roster player (so 0-stat players still appear)
   const rows = [];
-  state.roster.slice().sort(function (a, b) { return (a.jersey != null ? a.jersey : 999) - (b.jersey != null ? b.jersey : 999); }).forEach(function (r) {
+  state.roster.forEach(function (r) {
     const p = byPlayer.get(r.recordId) || { goal:0, assist:0, shot:0, sog:0, gb:0, dc:0, ct:0, save:0 };
     rows.push({ r, p });
+  });
+
+  // Sort by current column
+  const posOrder = { 'A':1, 'M':2, 'D':3, 'G':4 };
+  const sortKey = function (row, col) {
+    const r = row.r, p = row.p;
+    switch (col) {
+      case 'jersey': return r.jersey != null ? r.jersey : 9999;
+      case 'name': return (r.name || '').toLowerCase();
+      case 'pos': return posOrder[(r.position || '?').charAt(0)] || 99;
+      case 'goal': return p.goal;
+      case 'assist': return p.assist;
+      case 'pts': return p.goal + p.assist;
+      case 'shots': return p.shot + p.sog + p.goal;
+      case 'sog': return p.sog + p.goal;
+      case 'shpct': {
+        const shots = p.shot + p.sog + p.goal;
+        return shots ? (p.sog + p.goal) / shots : -1;  // empty rows sort to bottom for desc
+      }
+      case 'gb': return p.gb;
+      case 'dc': return p.dc;
+      case 'ct': return p.ct;
+      case 'save': return p.save;
+      default: return 0;
+    }
+  };
+  rows.sort(function (a, b) {
+    const av = sortKey(a, sc), bv = sortKey(b, sc);
+    let cmp;
+    if (typeof av === 'string' || typeof bv === 'string') {
+      cmp = String(av).localeCompare(String(bv));
+    } else {
+      cmp = av - bv;
+    }
+    if (cmp !== 0) return sd === 'asc' ? cmp : -cmp;
+    // Tiebreaker: jersey ascending
+    return (a.r.jersey != null ? a.r.jersey : 9999) - (b.r.jersey != null ? b.r.jersey : 9999);
   });
   const numCell = function (n) { return '<td class="num ' + (n > 0 ? 'nz' : 'dim') + '">' + (n || '') + '</td>'; };
   const pctCell = function (made, total) {
