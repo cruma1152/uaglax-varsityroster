@@ -348,19 +348,21 @@ async function tryLogin() {
   if (!pin) return;
   $('pin-submit').disabled = true;
   $('login-error').textContent = '';
-  // Probe the events endpoint with a deliberately-invalid gameId; if PIN's bad
-  // we'll get 401; if PIN's good we'll get 400 (validation). Either way no data
-  // is touched.
+  // Probe with an empty-body POST. The PIN check runs first; bad PIN returns
+  // 401, good PIN returns 400 (validation error on the empty body). No event
+  // is created either way.
   try {
-    const res = await fetch(API_BASE + '/lacrosse/stats/events?gameId=recXXXXXXXXXXXXXXX', {
-      headers: { 'X-UAGLAX-PIN': pin }
+    const res = await fetch(API_BASE + '/lacrosse/stats/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-UAGLAX-PIN': pin },
+      body: '{}'
     });
     if (res.status === 401) {
       $('login-error').textContent = 'Wrong PIN — try again.';
       $('pin-submit').disabled = false;
       return;
     }
-    // 400 (bad gameId) means PIN was accepted
+    // 400 (validation error) means PIN was accepted
     state.pin = pin;
     localStorage.setItem('uaglaxPin', pin);
     $('login').style.display = 'none';
