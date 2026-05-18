@@ -53,11 +53,19 @@
   .score-ua { color:#F7C414; }
   .score-opp { color:#f85149; }
   .vs { color:#7d8590; font-size:18px; }
-  #period-clock { flex:1; display:flex; align-items:center; justify-content:center; gap:14px; font-size:18px; }
-  .period-pill { background:#21262d; padding:6px 14px; border-radius:6px; font-weight:600; cursor:pointer; }
-  .period-pill:active { background:#30363d; }
-  .clock-display { font-family:'Menlo','SF Mono',monospace; font-size:24px; font-weight:600; min-width:84px; text-align:center; cursor:pointer; }
-  .clock-display:active { background:#21262d; border-radius:4px; }
+  #quarter-bar { flex:1; display:flex; align-items:center; justify-content:center; }
+  .quarter-segments {
+    display:flex; gap:4px; background:#0d1117; border:1px solid #30363d;
+    padding:4px; border-radius:10px;
+  }
+  .qbtn {
+    background:transparent; padding:10px 18px; border-radius:6px;
+    font-size:15px; font-weight:700; color:#8b949e;
+    min-width:54px; letter-spacing:.5px;
+    transition: background .12s ease, color .12s ease, transform .05s ease;
+  }
+  .qbtn:active { transform:scale(.95); }
+  .qbtn.active { background:#F7C414; color:#0d1117; }
   .topbar-actions { display:flex; gap:8px; }
   .topbar-actions button { background:#21262d; padding:10px 16px; border-radius:8px; font-size:14px; font-weight:600; border:1px solid #30363d; }
   .topbar-actions button:active { background:#30363d; }
@@ -129,6 +137,14 @@
   .player-jersey { font-size:24px; font-weight:800; font-family:'Menlo','SF Mono',monospace; }
   .player-name { font-size:11px; color:#7d8590; text-align:center; line-height:1.2; }
   .player-cap { color:#F7C414; font-size:10px; margin-top:1px; }
+  .sort-toggle { display:flex; gap:6px; }
+  .sort-toggle button {
+    background:#21262d; border:1px solid #30363d; padding:8px 14px;
+    border-radius:6px; font-size:13px; font-weight:600; color:#8b949e;
+    transition: background .12s ease;
+  }
+  .sort-toggle button.active { background:#F7C414; color:#0d1117; border-color:#F7C414; }
+  .sort-toggle button:active { transform: scale(.96); }
 
   /* ─── Settings sheet (period/clock controls) ─── */
   #settings { position:fixed; inset:0; background:rgba(0,0,0,.7); display:none; align-items:flex-end; justify-content:center; z-index:90; }
@@ -145,6 +161,17 @@
   #settings-card .close-btn { background:#21262d; border:1px solid #30363d; }
   #settings-card .end-btn { background:#f8514920; color:#f85149; border:1px solid #f85149; }
   #settings-card .logout-btn { background:#21262d; color:#7d8590; border:1px solid #30363d; }
+
+  /* ─── Quarter confirm modal ─── */
+  #qconfirm { position:fixed; inset:0; background:rgba(0,0,0,.8); display:none; align-items:center; justify-content:center; z-index:120; }
+  #qconfirm.show { display:flex; }
+  #qconfirm-card { background:#161b22; border:1px solid #30363d; border-radius:14px; padding:28px 32px; max-width:420px; width:90%; text-align:center; }
+  #qconfirm-card h3 { font-size:22px; font-weight:700; margin-bottom:10px; color:#F7C414; }
+  #qconfirm-card p { color:#8b949e; font-size:14px; margin-bottom:24px; line-height:1.4; }
+  #qconfirm-actions { display:flex; gap:10px; }
+  #qconfirm-actions button { flex:1; padding:14px; border-radius:8px; font-size:16px; font-weight:600; }
+  #qconfirm-actions .cancel { background:#21262d; color:#c9d1d9; border:1px solid #30363d; }
+  #qconfirm-actions .confirm { background:#F7C414; color:#0d1117; }
 
   /* ─── Toast ─── */
   #toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#161b22; border:1px solid #30363d; padding:12px 20px; border-radius:10px; color:#e6edf3; opacity:0; transition:opacity .2s; pointer-events:none; z-index:300; }
@@ -183,9 +210,14 @@
       <span class="score score-opp" id="opp-score">0</span>
       <span class="team score-opp" id="opp-name">OPP</span>
     </div>
-    <div id="period-clock">
-      <span class="period-pill" id="period-pill" onclick="openSettings()">P1</span>
-      <span class="clock-display" id="clock-display" onclick="openSettings()">00:00</span>
+    <div id="quarter-bar">
+      <div class="quarter-segments" id="quarter-segments">
+        <button class="qbtn active" data-q="1" onclick="requestQuarterChange(1)">Q1</button>
+        <button class="qbtn" data-q="2" onclick="requestQuarterChange(2)">Q2</button>
+        <button class="qbtn" data-q="3" onclick="requestQuarterChange(3)">Q3</button>
+        <button class="qbtn" data-q="4" onclick="requestQuarterChange(4)">Q4</button>
+        <button class="qbtn" data-q="5" onclick="requestQuarterChange(5)">OT</button>
+      </div>
     </div>
     <div class="topbar-actions">
       <button class="undo" id="undo-btn" onclick="undoLast()" disabled>↶ UNDO</button>
@@ -221,6 +253,11 @@
     <div id="picker-header">
       <h2>Select player</h2>
       <span class="stat-badge" id="picker-stat">GOAL</span>
+      <div class="sort-toggle" id="picker-sort">
+        <button data-sort="jersey" onclick="setPickerSort('jersey')">#</button>
+        <button data-sort="name" onclick="setPickerSort('name')">Name</button>
+        <button data-sort="position" onclick="setPickerSort('position')">Position</button>
+      </div>
       <button id="picker-close" onclick="closePicker()">Cancel</button>
     </div>
     <div id="picker-grid"></div>
@@ -231,20 +268,23 @@
 <div id="settings" onclick="closeSettingsIfBackdrop(event)">
   <div id="settings-card">
     <h3>Game controls</h3>
-    <div class="setting-row">
-      <label>Period</label>
-      <button class="period-btn" data-period="1" onclick="setPeriod(1)">1st Half</button>
-      <button class="period-btn" data-period="2" onclick="setPeriod(2)">2nd Half</button>
-      <button class="period-btn" data-period="3" onclick="setPeriod(3)">OT</button>
-    </div>
-    <div class="setting-row">
-      <label>Clock</label>
-      <input id="clock-input" type="text" placeholder="12:34" maxlength="5">
-    </div>
+    <p style="color:#7d8590;font-size:13px;margin-bottom:18px;">Quarter is set from the top bar (Q1 Q2 Q3 Q4 OT). No clock — stats are tagged with the active quarter only.</p>
     <div id="settings-actions">
       <button class="close-btn" onclick="closeSettings()">Done</button>
       <button class="end-btn" onclick="endGame()">End Game</button>
       <button class="logout-btn" onclick="logout()">Switch game</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Quarter switch confirm modal ─── -->
+<div id="qconfirm">
+  <div id="qconfirm-card">
+    <h3 id="qconfirm-title">Switch to Q2?</h3>
+    <p>Stats you log from here on will be tagged with the new quarter. Previously-logged stats stay in their original quarter.</p>
+    <div id="qconfirm-actions">
+      <button class="cancel" onclick="cancelQuarterChange()">Cancel</button>
+      <button class="confirm" onclick="confirmQuarterChange()">Switch</button>
     </div>
   </div>
 </div>
@@ -269,11 +309,13 @@ const state = {
   game: null,           // { recordId, opponent, ... }
   roster: [],           // array of player objects
   events: [],           // current game events (server-confirmed + local queue)
-  period: 1,
-  clock: '25:00',
+  period: 1,            // quarter 1-4, or 5 for OT
   pendingStat: null,    // stat type awaiting player selection
-  syncing: false
+  pendingQuarter: null, // quarter awaiting confirmation
+  syncing: false,
+  pickerSort: localStorage.getItem('uaglaxPickerSort') || 'jersey' // 'jersey' | 'name' | 'position'
 };
+function qLabel(q) { return q === 5 ? 'OT' : 'Q' + q; }
 
 // localStorage keys: per-game queue
 const queueKey = function () { return state.game ? 'uaglaxQueue::' + state.game.recordId : null; };
@@ -306,19 +348,21 @@ async function tryLogin() {
   if (!pin) return;
   $('pin-submit').disabled = true;
   $('login-error').textContent = '';
-  // Probe the events endpoint with a deliberately-invalid gameId; if PIN's bad
-  // we'll get 401; if PIN's good we'll get 400 (validation). Either way no data
-  // is touched.
+  // Probe with an empty-body POST. The PIN check runs first; bad PIN returns
+  // 401, good PIN returns 400 (validation error on the empty body). No event
+  // is created either way.
   try {
-    const res = await fetch(API_BASE + '/lacrosse/stats/events?gameId=recXXXXXXXXXXXXXXX', {
-      headers: { 'X-UAGLAX-PIN': pin }
+    const res = await fetch(API_BASE + '/lacrosse/stats/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-UAGLAX-PIN': pin },
+      body: '{}'
     });
     if (res.status === 401) {
       $('login-error').textContent = 'Wrong PIN — try again.';
       $('pin-submit').disabled = false;
       return;
     }
-    // 400 (bad gameId) means PIN was accepted
+    // 400 (validation error) means PIN was accepted
     state.pin = pin;
     localStorage.setItem('uaglaxPin', pin);
     $('login').style.display = 'none';
@@ -446,7 +490,7 @@ async function logEvent(payload) {
     statType: payload.statType,
     playerId: payload.playerId,
     period: state.period,
-    clock: state.clock,
+    clock: '',
     createdAt: new Date().toISOString()
   };
   // Look up player name for the feed display
@@ -480,7 +524,7 @@ async function flushQueue() {
           playerId: evt.playerId || undefined,
           statType: evt.statType,
           period: evt.period,
-          clock: evt.clock
+          clock: '' // not tracked; worker handles empty cleanly
         })
       });
       if (!res.ok) {
@@ -588,7 +632,7 @@ function renderFeed() {
     let cls = 'feed-row';
     if (e._failed) cls += ' failed';
     else if (!e._synced) cls += ' queued';
-    const clock = 'P' + (e.period || '?') + ' ' + (e.clock || '--:--');
+    const clock = qLabel(e.period || 1);
     let player;
     if (e.statType === 'Opp Goal') {
       player = 'OPP';
@@ -637,20 +681,36 @@ window.addEventListener('online', function () { if (state.game) flushQueue(); })
 // ============================================================================
 //   Player picker
 // ============================================================================
-function openPicker(statType) {
+function sortPlayers(players, key) {
+  const lastName = function (p) {
+    const parts = (p.name || '').trim().split(/\s+/);
+    return (parts[parts.length - 1] || '').toLowerCase();
+  };
+  if (key === 'name') {
+    return players.slice().sort(function (a, b) { return lastName(a).localeCompare(lastName(b)); });
+  }
+  if (key === 'position') {
+    const posOrder = { 'Attack':1, 'Midfield':2, 'Defense':3, 'Goalie':4 };
+    return players.slice().sort(function (a, b) {
+      const po = (posOrder[a.position] || 9) - (posOrder[b.position] || 9);
+      if (po !== 0) return po;
+      return (a.jersey != null ? a.jersey : 999) - (b.jersey != null ? b.jersey : 999);
+    });
+  }
+  // default: jersey number ascending
+  return players.slice().sort(function (a, b) {
+    return (a.jersey != null ? a.jersey : 999) - (b.jersey != null ? b.jersey : 999);
+  });
+}
+
+function renderPickerGrid() {
   const grid = $('picker-grid');
-  $('picker-stat').textContent = statType.toUpperCase();
+  if (!state.pendingStat) return;
   let players = state.roster.slice();
-  if (statType === 'Save') {
+  if (state.pendingStat === 'Save') {
     players = players.filter(function (p) { return p.position === 'Goalie'; });
   }
-  // Sort: position groups (A/M/D/G), then jersey ascending
-  const posOrder = { 'Attack':1, 'Midfield':2, 'Defense':3, 'Goalie':4 };
-  players.sort(function (a, b) {
-    const po = (posOrder[a.position] || 9) - (posOrder[b.position] || 9);
-    if (po !== 0) return po;
-    return (a.jersey || 999) - (b.jersey || 999);
-  });
+  players = sortPlayers(players, state.pickerSort);
   grid.innerHTML = players.map(function (p) {
     const cls = (p.position || '').toLowerCase();
     return '<div class="player-card ' + cls + '" onclick="pickPlayer(\'' + p.recordId + '\')">' +
@@ -659,6 +719,22 @@ function openPicker(statType) {
       (p.captain ? '<div class="player-cap">★</div>' : '') +
       '</div>';
   }).join('');
+  // Highlight the active sort button
+  document.querySelectorAll('#picker-sort button').forEach(function (b) {
+    b.classList.toggle('active', b.dataset.sort === state.pickerSort);
+  });
+}
+
+function setPickerSort(key) {
+  if (key !== 'jersey' && key !== 'name' && key !== 'position') return;
+  state.pickerSort = key;
+  localStorage.setItem('uaglaxPickerSort', key);
+  renderPickerGrid();
+}
+
+function openPicker(statType) {
+  $('picker-stat').textContent = statType.toUpperCase();
+  renderPickerGrid();
   $('picker').classList.add('show');
 }
 function closePicker() {
@@ -675,30 +751,43 @@ function pickPlayer(recordId) {
 }
 
 // ============================================================================
-//   Settings: period + clock + end game + logout
+//   Quarter switching (with confirmation)
+// ============================================================================
+function requestQuarterChange(q) {
+  if (q === state.period) return; // tapping the active quarter is a no-op
+  state.pendingQuarter = q;
+  $('qconfirm-title').textContent = 'Switch to ' + qLabel(q) + '?';
+  $('qconfirm').classList.add('show');
+}
+function confirmQuarterChange() {
+  if (state.pendingQuarter == null) return;
+  state.period = state.pendingQuarter;
+  state.pendingQuarter = null;
+  updateQuarterSegments();
+  $('qconfirm').classList.remove('show');
+  toast('Now tracking ' + qLabel(state.period));
+}
+function cancelQuarterChange() {
+  state.pendingQuarter = null;
+  $('qconfirm').classList.remove('show');
+}
+function updateQuarterSegments() {
+  document.querySelectorAll('#quarter-segments .qbtn').forEach(function (b) {
+    b.classList.toggle('active', parseInt(b.dataset.q, 10) === state.period);
+  });
+}
+
+// ============================================================================
+//   Settings: end game + logout (period now lives on the top bar)
 // ============================================================================
 function openSettings() {
-  document.querySelectorAll('.period-btn').forEach(function (b) {
-    b.classList.toggle('active', parseInt(b.dataset.period, 10) === state.period);
-  });
-  $('clock-input').value = state.clock;
   $('settings').classList.add('show');
 }
 function closeSettings() {
-  const clk = $('clock-input').value.trim();
-  if (/^\d{1,2}:\d{2}$/.test(clk)) state.clock = clk;
-  $('clock-display').textContent = state.clock;
   $('settings').classList.remove('show');
 }
 function closeSettingsIfBackdrop(e) {
   if (e.target.id === 'settings') closeSettings();
-}
-function setPeriod(p) {
-  state.period = p;
-  $('period-pill').textContent = p === 3 ? 'OT' : 'P' + p;
-  document.querySelectorAll('.period-btn').forEach(function (b) {
-    b.classList.toggle('active', parseInt(b.dataset.period, 10) === p);
-  });
 }
 function endGame() {
   if (!confirm('End the game? You\'ll be returned to the game picker. Charles can mark the Schedule row as Final separately in Airtable.')) return;
@@ -720,8 +809,7 @@ function logout() {
 // ============================================================================
 //   Init
 // ============================================================================
-$('clock-display').textContent = state.clock;
-$('period-pill').textContent = 'P' + state.period;
+updateQuarterSegments();
 </script>
 </body>
 </html>

@@ -154,19 +154,8 @@
 </head>
 <body>
 
-<!-- ─── Login ─── -->
-<div id="login">
-  <div id="login-card">
-    <h1>UAGLAX COACH VIEW</h1>
-    <p>Enter the PIN to open the live game dashboard.</p>
-    <input id="pin-input" type="tel" maxlength="8" placeholder="••••" autocomplete="off" inputmode="numeric">
-    <button id="pin-submit">Continue</button>
-    <div id="login-error"></div>
-  </div>
-</div>
-
-<!-- ─── Game picker ─── -->
-<div id="game-picker">
+<!-- ─── Game picker (no login — events are public read) ─── -->
+<div id="game-picker" class="show">
   <h1>Select a game to watch</h1>
   <div id="game-list"><div class="lb-empty">Loading games…</div></div>
 </div>
@@ -281,7 +270,6 @@ const API_BASE = (function () {
 const REFRESH_INTERVAL_MS = 10000;
 
 const state = {
-  pin: localStorage.getItem('uaglaxPin') || '',
   game: null,
   roster: [],
   events: [],
@@ -298,40 +286,8 @@ function toast(msg, ms) {
   toast._t = setTimeout(function () { el.classList.remove('show'); }, ms || 1800);
 }
 
-// ============================================================================
-//   Login
-// ============================================================================
-$('pin-submit').addEventListener('click', tryLogin);
-$('pin-input').addEventListener('keydown', function (e) { if (e.key === 'Enter') tryLogin(); });
-
-async function tryLogin() {
-  const pin = $('pin-input').value.trim();
-  if (!pin) return;
-  $('pin-submit').disabled = true;
-  $('login-error').textContent = '';
-  try {
-    const res = await fetch(API_BASE + '/lacrosse/stats/events?gameId=recXXXXXXXXXXXXXXX', {
-      headers: { 'X-UAGLAX-PIN': pin }
-    });
-    if (res.status === 401) {
-      $('login-error').textContent = 'Wrong PIN — try again.';
-      $('pin-submit').disabled = false;
-      return;
-    }
-    state.pin = pin;
-    localStorage.setItem('uaglaxPin', pin);
-    $('login').style.display = 'none';
-    showGamePicker();
-  } catch (err) {
-    $('login-error').textContent = 'Network error: ' + err.message;
-    $('pin-submit').disabled = false;
-  }
-}
-
-if (state.pin) {
-  $('login').style.display = 'none';
-  showGamePicker();
-}
+// No login — the events read endpoint is public.
+showGamePicker();
 
 // ============================================================================
 //   Game picker
@@ -408,10 +364,7 @@ function manualRefresh() { refresh(); toast('Refreshed'); }
 async function refresh() {
   if (!state.game) return;
   try {
-    const res = await fetch(API_BASE + '/lacrosse/stats/events?gameId=' + state.game.recordId, {
-      headers: { 'X-UAGLAX-PIN': state.pin }
-    });
-    if (res.status === 401) { toast('PIN expired — log in again'); state.pin = ''; localStorage.removeItem('uaglaxPin'); location.reload(); return; }
+    const res = await fetch(API_BASE + '/lacrosse/stats/events?gameId=' + state.game.recordId);
     if (!res.ok) { setRefreshStatus('Failed'); return; }
     const data = await res.json();
     state.events = data.events || [];
@@ -468,7 +421,14 @@ function aggregate() {
     if (e.playerId && t !== 'Opp Goal') {
       let p = byPlayer.get(e.playerId);
       if (!p) {
-        const meta = playerLookup(e.playerId) || { name: '(unknown)', jersey: null, position: '' };
+        // Prefer the fields the worker enriches; fall back to the local roster
+        // lookup (which is async-loaded so may not be ready yet).
+        let meta;
+        if (e.playerName) {
+          meta = { name: e.playerName, jersey: e.jersey != null ? e.jersey : null, position: e.position || '' };
+        } else {
+          meta = playerLookup(e.playerId) || { name: '(unknown)', jersey: null, position: '' };
+        }
         p = { meta, goal:0, assist:0, shot:0, sog:0, gb:0, dc:0, ct:0, save:0 };
         byPlayer.set(e.playerId, p);
       }
