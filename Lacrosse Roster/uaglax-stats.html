@@ -255,15 +255,13 @@
 // ============================================================================
 //   Config + state
 // ============================================================================
+// Same worker base the rest of the UAGLAX roster app uses. Override in the
+// browser console if you ever need to point this at a different worker:
+//   localStorage.setItem('uaglaxApiBase', 'https://your-worker.workers.dev')
 const API_BASE = (function () {
-  // Same origin if hosted on uaglax.virginia-homes.com, otherwise fallback.
-  // Override by setting localStorage.uaglaxApiBase = 'https://vh-api.xxx.workers.dev'
   const o = localStorage.getItem('uaglaxApiBase');
   if (o) return o.replace(/\/$/, '');
-  if (location.hostname.endsWith('virginia-homes.com') || location.hostname === 'localhost') {
-    return location.origin;
-  }
-  return 'https://uaglax.virginia-homes.com';
+  return 'https://vh-api.charles-9e5.workers.dev';
 })();
 
 const state = {
