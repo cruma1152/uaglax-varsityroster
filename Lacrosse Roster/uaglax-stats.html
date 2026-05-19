@@ -112,6 +112,7 @@
   .stat-btn.draw { background:#a371f710; border-color:#a371f780; color:#bc8cff; }
   .stat-btn.dlost { background:#5d3d9610; border-color:#5d3d9680; color:#7f5fc5; }
   .stat-btn.ct { background:#db6d2810; border-color:#db6d2880; color:#ff9b50; }
+  .stat-btn.to { background:#f8514910; border-color:#f8514970; color:#ff7b72; }
   .stat-btn.save { background:#2ea04310; border-color:#3fb95080; color:#56d364; }
   .stat-btn.opp { background:#f8514920; border-color:#f85149; color:#f85149; }
   .stat-btn small { font-size:13px; font-weight:500; opacity:.8; margin-top:4px; letter-spacing:0; }
@@ -210,7 +211,7 @@
   #dc-track.empty::after { content: 'No draws yet'; color:#484f58; font-size:13px; padding:0 14px; }
 
   /* Leaderboards */
-  #leaderboards { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; padding: 0 24px 18px; }
+  #leaderboards { display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; padding: 0 24px 18px; }
   .lb { background:#161b22; border:1px solid #30363d; border-radius:12px; padding:18px 18px 12px; min-height:200px; }
   .lb h2 { font-size:12px; color:#7d8590; text-transform:uppercase; letter-spacing:1.4px; margin-bottom:14px; }
   .lb-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #21262d; }
@@ -232,14 +233,55 @@
   .lb-stats .small { color:#7d8590; font-size:11px; }
   .lb-empty { text-align:center; color:#484f58; padding:30px 10px; font-size:13px; }
 
+  /* Goals by Quarter mini-grid */
+  #goals-by-quarter { margin: 0 24px 18px; background:#161b22; border:1px solid #30363d; border-radius:12px; padding:18px 24px; }
+  #goals-by-quarter h2 { font-size:13px; color:#7d8590; text-transform:uppercase; letter-spacing:1.4px; margin-bottom:14px; }
+  .gbq-row { display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; }
+  .gbq-row.has-ot { grid-template-columns:repeat(5, 1fr); }
+  .gbq-tile { background:#0d1117; border:1px solid #21262d; border-radius:10px; padding:12px 14px; text-align:center; }
+  .gbq-tile .gbq-q { font-size:12px; color:#7d8590; font-weight:700; letter-spacing:1.2px; }
+  .gbq-tile .gbq-score { display:flex; align-items:center; justify-content:center; gap:14px; margin-top:8px; font-family:'SF Mono','Menlo',monospace; font-size:22px; font-weight:700; }
+  .gbq-tile .gbq-ua { color:#F7C414; }
+  .gbq-tile .gbq-sep { color:#484f58; font-size:14px; font-weight:400; }
+  .gbq-tile .gbq-opp { color:#f85149; }
+  .gbq-tile .gbq-margin { font-size:11px; color:#7d8590; margin-top:4px; letter-spacing:0.5px; }
+  .gbq-tile.win .gbq-margin { color:#3fb950; }
+  .gbq-tile.loss .gbq-margin { color:#f85149; }
+
+  /* Shooting % by Half */
+  #shooting-by-half { margin: 0 24px 18px; background:#161b22; border:1px solid #30363d; border-radius:12px; padding:18px 24px; }
+  #shooting-by-half h2 { font-size:13px; color:#7d8590; text-transform:uppercase; letter-spacing:1.4px; margin-bottom:14px; }
+  .sbh-row { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; }
+  .sbh-tile { background:#0d1117; border:1px solid #21262d; border-radius:10px; padding:14px 18px; text-align:center; }
+  .sbh-tile .sbh-label { font-size:11px; color:#7d8590; text-transform:uppercase; letter-spacing:1.2px; }
+  .sbh-tile .sbh-value { font-size:32px; font-weight:700; color:#F7C414; font-family:'SF Mono','Menlo',monospace; margin-top:6px; }
+  .sbh-tile .sbh-sub { font-size:12px; color:#7d8590; margin-top:4px; }
+  .sbh-tile.sbh-delta .sbh-value.up { color:#3fb950; }
+  .sbh-tile.sbh-delta .sbh-value.down { color:#f85149; }
+  .sbh-tile.sbh-delta .sbh-value.flat { color:#7d8590; }
+
   /* Goal Timeline */
   #timeline { margin: 0 24px 18px; background:#161b22; border:1px solid #30363d; border-radius:12px; padding:18px 24px; }
   #timeline h2 { font-size:13px; color:#7d8590; text-transform:uppercase; letter-spacing:1.4px; margin-bottom:14px; }
-  #timeline-svg { width:100%; height:130px; display:block; }
+  #timeline-svg { width:100%; height:160px; display:block; }
+  #timeline-svg .tl-goal { cursor:pointer; transition: transform .1s ease; transform-origin:center; transform-box:fill-box; }
+  #timeline-svg .tl-goal:hover { transform:scale(1.12); }
   .timeline-legend { font-size:12px; color:#7d8590; margin-top:8px; display:flex; gap:18px; justify-content:center; }
   .legend-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:middle; }
   .legend-dot.ua { background:#F7C414; }
   .legend-dot.opp { background:#f85149; }
+
+  /* Coach's Takeaways */
+  #takeaways { margin: 0 24px 18px; background:#161b22; border:1px solid #30363d; border-radius:12px; padding:18px 24px; }
+  #takeaways h2 { font-size:13px; color:#7d8590; text-transform:uppercase; letter-spacing:1.4px; margin-bottom:14px; }
+  #takeaways-list { list-style:none; padding:0; margin:0; }
+  #takeaways-list li { padding:10px 0 10px 28px; border-bottom:1px solid #21262d; font-size:14px; color:#c9d1d9; line-height:1.5; position:relative; }
+  #takeaways-list li:last-child { border-bottom:0; }
+  #takeaways-list li::before { content:'›'; position:absolute; left:8px; top:8px; color:#F7C414; font-size:18px; font-weight:700; }
+  #takeaways-list li.ta-empty { color:#484f58; font-style:italic; }
+  #takeaways-list li.ta-empty::before { content:''; }
+  #takeaways-list li.ta-positive::before { content:'✓'; color:#3fb950; font-size:14px; top:11px; }
+  #takeaways-list li.ta-negative::before { content:'⚠'; color:#f85149; font-size:14px; top:11px; }
 
   /* ════════════════════════════════════════════════════════════════════
      REPORT PANEL
@@ -437,6 +479,7 @@
       <button class="stat-btn gb" onclick="selectStat('Ground Ball')">GB<small>ground ball</small></button>
       <button class="stat-btn mgb" onclick="logTeamStat('Missed GB')">MGB<small>missed GB</small></button>
       <button class="stat-btn ct" onclick="selectStat('Caused Turnover')">CT<small>caused TO</small></button>
+      <button class="stat-btn to" onclick="selectStat('Turnover')">TO<small>turnover</small></button>
       <button class="stat-btn save" onclick="selectStat('Save')">SAVE<small>goalie</small></button>
       <button class="stat-btn opp" onclick="logOppGoal()">OPP GOAL</button>
     </div>
@@ -501,23 +544,58 @@
         <div class="bar-value" id="val-gb">—</div>
       </div>
       <div class="bar-row">
-        <div class="bar-label">Caused TOs</div>
-        <div class="bar-track"><div class="bar-fill" id="bar-ct" style="width:0%">0</div></div>
-        <div class="bar-value" id="val-ct">0</div>
+        <div class="bar-label">Turnovers</div>
+        <div class="bar-track split" id="to-track">
+          <div class="gb-won-seg" id="to-caused" style="width:0%"></div>
+          <div class="gb-missed-seg" id="to-committed" style="width:0%"></div>
+        </div>
+        <div class="bar-value" id="val-todiff">—</div>
+      </div>
+    </div>
+    <!-- Goals by Quarter mini-grid -->
+    <div id="goals-by-quarter">
+      <h2>Goals by Quarter</h2>
+      <div class="gbq-row" id="gbq-row"></div>
+    </div>
+    <!-- Shooting % by Half -->
+    <div id="shooting-by-half">
+      <h2>Shooting % by Half</h2>
+      <div class="sbh-row">
+        <div class="sbh-tile">
+          <div class="sbh-label">1st Half</div>
+          <div class="sbh-value" id="sbh-1h-pct">—</div>
+          <div class="sbh-sub" id="sbh-1h-sub">0 SOG / 0 shots</div>
+        </div>
+        <div class="sbh-tile">
+          <div class="sbh-label">2nd Half</div>
+          <div class="sbh-value" id="sbh-2h-pct">—</div>
+          <div class="sbh-sub" id="sbh-2h-sub">0 SOG / 0 shots</div>
+        </div>
+        <div class="sbh-tile sbh-delta">
+          <div class="sbh-label">Adjustment</div>
+          <div class="sbh-value" id="sbh-delta">—</div>
+          <div class="sbh-sub">2H vs 1H</div>
+        </div>
       </div>
     </div>
     <div id="leaderboards">
       <div class="lb"><h2>Top Scorers</h2><div id="lb-scorers"><div class="lb-empty">No goals yet</div></div></div>
+      <div class="lb"><h2>Top Assisters</h2><div id="lb-assists"><div class="lb-empty">No assists yet</div></div></div>
       <div class="lb"><h2>Ground Ball Leaders</h2><div id="lb-gbs"><div class="lb-empty">No GBs yet</div></div></div>
       <div class="lb"><h2>Draw Control Leaders</h2><div id="lb-draws"><div class="lb-empty">No DCs yet</div></div></div>
     </div>
     <div id="timeline">
       <h2>Goal Timeline</h2>
-      <svg id="timeline-svg" viewBox="0 0 1000 130" preserveAspectRatio="none"></svg>
+      <svg id="timeline-svg" viewBox="0 0 1000 160" preserveAspectRatio="xMidYMid meet"></svg>
       <div class="timeline-legend">
         <span><span class="legend-dot ua"></span>UA Goal</span>
         <span><span class="legend-dot opp"></span>OPP Goal</span>
       </div>
+    </div>
+    <!-- Coach's Takeaways -->
+    <div id="takeaways">
+      <h2>Coach's Takeaways</h2>
+      <ul id="takeaways-list"><li class="ta-empty">No data yet — start tagging events to see insights.</li></ul>
     </div>
   </div>
 
@@ -624,7 +702,7 @@ const API_BASE = (function () {
 })();
 
 const REFRESH_INTERVAL_MS = 10000;
-const STAT_TYPES = ['Goal','Assist','Shot','SOG','Ground Ball','Missed GB','Draw Control','Caused Turnover','Save','Opp Goal'];
+const STAT_TYPES = ['Goal','Assist','Shot','SOG','Ground Ball','Missed GB','Draw Control','Caused Turnover','Turnover','Save','Opp Goal'];
 
 const state = {
   pin: localStorage.getItem('uaglaxPin') || '',
@@ -649,7 +727,7 @@ const REPORT_SORT_DEFAULT_DIR = {
   jersey: 'asc', name: 'asc', pos: 'asc',
   goal: 'desc', assist: 'desc', pts: 'desc',
   shots: 'desc', sog: 'desc', shpct: 'desc',
-  gb: 'desc', dc: 'desc', ct: 'desc', save: 'desc'
+  gb: 'desc', dc: 'desc', ct: 'desc', to: 'desc', save: 'desc'
 };
 
 function setReportSort(col) {
@@ -1171,7 +1249,7 @@ function filteredEvents() {
 // ============================================================================
 function aggregate(eventList) {
   const ev = eventList || filteredEvents();
-  const totals = { goal:0, assist:0, shot:0, sog:0, gb:0, mgb:0, dc:0, dlost:0, ct:0, save:0, oppGoal:0 };
+  const totals = { goal:0, assist:0, shot:0, sog:0, gb:0, mgb:0, dc:0, dlost:0, ct:0, to:0, save:0, oppGoal:0 };
   const byPlayer = new Map();
   let lastPeriod = 1;
   state.events.forEach(function (e) { if (e.period && e.period > lastPeriod) lastPeriod = e.period; });
@@ -1186,6 +1264,7 @@ function aggregate(eventList) {
     else if (t === 'Draw Control') totals.dc++;
     else if (t === 'Draw Lost') totals.dlost++;
     else if (t === 'Caused Turnover') totals.ct++;
+    else if (t === 'Turnover') totals.to++;
     else if (t === 'Save') totals.save++;
     else if (t === 'Opp Goal') totals.oppGoal++;
 
@@ -1198,7 +1277,7 @@ function aggregate(eventList) {
           const r = state.roster.find(function (x) { return x.recordId === e.playerId; });
           meta = r ? { name: r.name, jersey: r.jersey, position: r.position } : { name:'(unknown)', jersey:null, position:'' };
         }
-        p = { meta, goal:0, assist:0, shot:0, sog:0, gb:0, dc:0, ct:0, save:0 };
+        p = { meta, goal:0, assist:0, shot:0, sog:0, gb:0, dc:0, ct:0, to:0, save:0 };
         byPlayer.set(e.playerId, p);
       }
       if (t === 'Goal') p.goal++;
@@ -1208,6 +1287,7 @@ function aggregate(eventList) {
       else if (t === 'Ground Ball') p.gb++;
       else if (t === 'Draw Control') p.dc++;
       else if (t === 'Caused Turnover') p.ct++;
+      else if (t === 'Turnover') p.to++;
       else if (t === 'Save') p.save++;
     }
   });
@@ -1293,12 +1373,23 @@ function renderSummary() {
   $('kpi-saves-sub').textContent = totals.oppGoal + ' GA';
   $('kpi-savepct').textContent = totals.savePct == null ? '—' : totals.savePct + '%';
 
-  // Caused TOs stays a single-fill bar (no opponent equivalent tracked).
-  const maxBar = Math.max(totals.ct, 6);
-  const scale = function (v) { return Math.max(6, Math.round(100 * v / maxBar)); };
-  $('bar-ct').style.width = scale(totals.ct) + '%';
-  $('bar-ct').textContent = totals.ct;
-  $('val-ct').textContent = totals.ct;
+  // Turnover Differential — split bar (Caused vs Committed), value = net diff
+  const toTotal = totals.ct + totals.to;
+  if (toTotal === 0) {
+    $('to-caused').style.width = '0%'; $('to-caused').textContent = '';
+    $('to-committed').style.width = '0%'; $('to-committed').textContent = '';
+    $('to-track').classList.add('empty');
+    $('val-todiff').textContent = '—';
+  } else {
+    const causedPct = (totals.ct / toTotal) * 100;
+    $('to-caused').style.width = causedPct + '%';
+    $('to-caused').textContent = totals.ct > 0 ? totals.ct + ' caused' : '';
+    $('to-committed').style.width = (100 - causedPct) + '%';
+    $('to-committed').textContent = totals.to > 0 ? totals.to + ' committed' : '';
+    $('to-track').classList.remove('empty');
+    const diff = totals.ct - totals.to;
+    $('val-todiff').textContent = (diff > 0 ? '+' : '') + diff;
+  }
 
   // Split DC bar — gold (won) on left, red (lost) on right
   const dcTotal = totals.dc + totals.dlost;
@@ -1337,6 +1428,9 @@ function renderSummary() {
   renderLB('lb-scorers', byPlayer, function (p) { return p.goal * 2 + p.assist; },
     function (p) { return { big: p.goal + 'G', small: p.assist + ' A · ' + (p.goal + p.assist) + ' Pts' }; },
     function (p) { return p.goal + p.assist === 0; }, 'No goals yet');
+  renderLB('lb-assists', byPlayer, function (p) { return p.assist * 2 + p.goal; },
+    function (p) { return { big: p.assist + 'A', small: p.goal + ' G · ' + (p.goal + p.assist) + ' Pts' }; },
+    function (p) { return p.assist === 0; }, 'No assists yet');
   renderLB('lb-gbs', byPlayer, function (p) { return p.gb; },
     function (p) { return { big: p.gb, small: 'ground balls' }; },
     function (p) { return p.gb === 0; }, 'No GBs yet');
@@ -1344,7 +1438,129 @@ function renderSummary() {
     function (p) { return { big: p.dc, small: 'draws won' }; },
     function (p) { return p.dc === 0; }, 'No DCs yet');
 
+  renderGoalsByQuarter();
+  renderShootingByHalf();
+  renderCoachTakeaways(totals);
   renderTimeline();
+}
+
+// ----- Goals by Quarter -----
+function renderGoalsByQuarter() {
+  const row = $('gbq-row');
+  if (!row) return;
+  const hasOT = state.events.some(function (e) { return e.period === 5; });
+  const periods = hasOT ? [1, 2, 3, 4, 5] : [1, 2, 3, 4];
+  row.classList.toggle('has-ot', hasOT);
+  row.innerHTML = periods.map(function (q) {
+    const ev = state.events.filter(function (e) { return e.period === q; });
+    let ua = 0, opp = 0;
+    ev.forEach(function (e) {
+      if (e.statType === 'Goal') ua++;
+      else if (e.statType === 'Opp Goal') opp++;
+    });
+    const diff = ua - opp;
+    const winCls = ua === 0 && opp === 0 ? '' : (diff > 0 ? ' win' : (diff < 0 ? ' loss' : ''));
+    const marginText = (ua === 0 && opp === 0)
+      ? '—'
+      : (diff === 0 ? 'Even' : (diff > 0 ? '+' + diff : String(diff)));
+    return '<div class="gbq-tile' + winCls + '">' +
+      '<div class="gbq-q">' + qLabel(q) + '</div>' +
+      '<div class="gbq-score">' +
+        '<span class="gbq-ua">' + ua + '</span>' +
+        '<span class="gbq-sep">–</span>' +
+        '<span class="gbq-opp">' + opp + '</span>' +
+      '</div>' +
+      '<div class="gbq-margin">' + marginText + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+// ----- Shooting % by Half -----
+function renderShootingByHalf() {
+  // 1H = Q1+Q2; 2H = Q3+Q4+OT
+  const firstHalf = state.events.filter(function (e) { return e.period === 1 || e.period === 2; });
+  const secondHalf = state.events.filter(function (e) { return e.period === 3 || e.period === 4 || e.period === 5; });
+  const halfStats = function (evs) {
+    let goals = 0, sog = 0, shot = 0;
+    evs.forEach(function (e) {
+      if (e.statType === 'Goal') goals++;
+      else if (e.statType === 'SOG') sog++;
+      else if (e.statType === 'Shot') shot++;
+    });
+    const totalShots = goals + sog + shot;
+    const onGoal = goals + sog;
+    return { totalShots: totalShots, onGoal: onGoal, pct: totalShots ? Math.round(100 * onGoal / totalShots) : null };
+  };
+  const h1 = halfStats(firstHalf);
+  const h2 = halfStats(secondHalf);
+  $('sbh-1h-pct').textContent = h1.pct == null ? '—' : h1.pct + '%';
+  $('sbh-1h-sub').textContent = h1.onGoal + ' SOG / ' + h1.totalShots + ' shots';
+  $('sbh-2h-pct').textContent = h2.pct == null ? '—' : h2.pct + '%';
+  $('sbh-2h-sub').textContent = h2.onGoal + ' SOG / ' + h2.totalShots + ' shots';
+  const dEl = $('sbh-delta');
+  dEl.classList.remove('up', 'down', 'flat');
+  if (h1.pct == null || h2.pct == null) {
+    dEl.textContent = '—';
+  } else {
+    const delta = h2.pct - h1.pct;
+    if (delta > 0) { dEl.textContent = '+' + delta + '%'; dEl.classList.add('up'); }
+    else if (delta < 0) { dEl.textContent = delta + '%'; dEl.classList.add('down'); }
+    else { dEl.textContent = '0%'; dEl.classList.add('flat'); }
+  }
+}
+
+// ----- Coach's Takeaways -----
+function renderCoachTakeaways(totals) {
+  const list = $('takeaways-list');
+  if (!list) return;
+  const items = [];
+  const totalShots = totals.totalShots;
+  const dcTotal = totals.dc + totals.dlost;
+  const gbTotal = totals.gb + totals.mgb;
+  // Possession game story
+  if (dcTotal >= 3) {
+    if (totals.drawPct >= 60) items.push({ tone: 'positive', text: 'Won the draw battle ' + totals.dc + '–' + totals.dlost + ' (' + totals.drawPct + '%). Possession game is the foundation.' });
+    else if (totals.drawPct <= 40) items.push({ tone: 'negative', text: 'Lost the draw battle ' + totals.dc + '–' + totals.dlost + ' (' + totals.drawPct + '%). Earning draws should be a focus.' });
+  }
+  if (gbTotal >= 4) {
+    if (totals.gbPct >= 60) items.push({ tone: 'positive', text: 'Won the ground-ball battle ' + totals.gb + '–' + totals.mgb + ' (' + totals.gbPct + '%). Hustle stats favor UA.' });
+    else if (totals.gbPct <= 40) items.push({ tone: 'negative', text: 'Lost the ground-ball battle ' + totals.gb + '–' + totals.mgb + ' (' + totals.gbPct + '%). Hustle plays are leaking possessions.' });
+  }
+  // Turnover differential
+  const toTotal = totals.ct + totals.to;
+  if (toTotal >= 3) {
+    const diff = totals.ct - totals.to;
+    if (diff >= 3) items.push({ tone: 'positive', text: 'Turnover differential +' + diff + ' (caused ' + totals.ct + ', committed ' + totals.to + '). Defense is creating extra possessions.' });
+    else if (diff <= -3) items.push({ tone: 'negative', text: 'Turnover differential ' + diff + ' (caused ' + totals.ct + ', committed ' + totals.to + '). Care of the ball needs work.' });
+  }
+  // Goalie production
+  const shotsFaced = totals.save + totals.oppGoal;
+  if (shotsFaced >= 5) {
+    if (totals.savePct >= 70) items.push({ tone: 'positive', text: 'Goalie save rate ' + totals.savePct + '% (' + totals.save + ' saves on ' + shotsFaced + ' shots faced). Strong play in the cage.' });
+    else if (totals.savePct <= 45) items.push({ tone: 'negative', text: 'Goalie save rate only ' + totals.savePct + '%. Defensive shape may be giving up clean looks.' });
+  }
+  // Shooting efficiency
+  if (totalShots >= 8 && totals.shotPct != null) {
+    if (totals.shotPct >= 60) items.push({ tone: 'positive', text: 'Shot accuracy ' + totals.shotPct + '% (' + totals.onGoal + ' of ' + totalShots + ' on goal). Shot selection is sharp.' });
+    else if (totals.shotPct <= 35) items.push({ tone: 'negative', text: 'Shot accuracy only ' + totals.shotPct + '% (' + (totalShots - totals.onGoal) + ' misses). Encourage higher-percentage looks.' });
+  }
+  // Late-game push
+  const q4Goals = state.events.filter(function (e) { return e.period === 4 && e.statType === 'Goal'; }).length;
+  if (q4Goals >= 3) items.push({ tone: 'positive', text: q4Goals + ' UA goals in Q4 — strong finish.' });
+  // Cold start
+  const q1Stats = state.events.filter(function (e) { return e.period === 1; });
+  const q1HasShots = q1Stats.some(function (e) { return e.statType === 'Goal' || e.statType === 'SOG' || e.statType === 'Shot'; });
+  const q1Goals = q1Stats.filter(function (e) { return e.statType === 'Goal'; }).length;
+  if (q1HasShots && q1Goals === 0) items.push({ tone: 'negative', text: 'Zero UA goals in Q1 despite shots on goal — slow start.' });
+  // Render
+  if (items.length === 0) {
+    list.innerHTML = '<li class="ta-empty">Not enough data yet — tag more events to see insights.</li>';
+    return;
+  }
+  // Cap to 4 takeaways so it doesn't overwhelm
+  list.innerHTML = items.slice(0, 4).map(function (it) {
+    return '<li class="ta-' + it.tone + '">' + it.text + '</li>';
+  }).join('');
 }
 
 function renderLB(elId, byPlayer, scoreFn, labelFn, emptyTest, emptyMsg) {
@@ -1368,29 +1584,97 @@ function renderLB(elId, byPlayer, scoreFn, labelFn, emptyTest, emptyMsg) {
 
 function renderTimeline() {
   const svg = $('timeline-svg');
-  const w = 1000, h = 130, padL = 40, padR = 20, usable = w - padL - padR, midY = h / 2;
+  const w = 1000, h = 160, padL = 44, padR = 16, usable = w - padL - padR, midY = 86;
+  const escXml = function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
   const goals = filteredEvents().filter(function (e) { return e.statType === 'Goal' || e.statType === 'Opp Goal'; });
   if (goals.length === 0) {
     svg.innerHTML = '<text x="' + (w/2) + '" y="' + midY + '" text-anchor="middle" fill="#484f58" font-size="14">No goals yet</text>';
     return;
   }
-  const sorted = goals.slice().sort(function (a, b) { return (a.createdAt || '').localeCompare(b.createdAt || ''); });
-  const tStart = new Date(sorted[0].createdAt || Date.now()).getTime();
-  const tEnd = Math.max(new Date(sorted[sorted.length - 1].createdAt || Date.now()).getTime() + 60000, tStart + 60000);
-  const xForTime = function (iso) { if (!iso) return padL; const t = new Date(iso).getTime(); return padL + usable * ((t - tStart) / (tEnd - tStart)); };
+  // Determine periods to show: 1-4 always, plus 5 (OT) if any event lives in period 5
+  const hasOT = state.events.some(function (e) { return e.period === 5; });
+  const periods = hasOT ? [1, 2, 3, 4, 5] : [1, 2, 3, 4];
+  const bandW = usable / periods.length;
+  // Compute the local time-range inside each period band for proportional placement
+  const bandInfo = {};
+  periods.forEach(function (p, i) {
+    const band = goals.filter(function (g) { return (g.period || 1) === p; });
+    const x0 = padL + i * bandW;
+    if (band.length === 0) { bandInfo[p] = { x0: x0, w: bandW, tStart: 0, tEnd: 1 }; return; }
+    const ts = band.map(function (g) { return new Date(g.createdAt || 0).getTime() || 0; });
+    const tMin = Math.min.apply(null, ts);
+    const tMax = Math.max.apply(null, ts);
+    bandInfo[p] = { x0: x0, w: bandW, tStart: tMin, tEnd: Math.max(tMax, tMin + 1) };
+  });
   let out = '';
+  // Alternating band shading
+  periods.forEach(function (p, i) {
+    if (i % 2 !== 1) return;
+    const x0 = padL + i * bandW;
+    out += '<rect x="' + x0 + '" y="22" width="' + bandW + '" height="' + (h - 50) + '" fill="#0d1117" opacity="0.45"/>';
+  });
+  // Period dividers (dashed) between bands
+  for (let i = 1; i < periods.length; i++) {
+    const x = padL + i * bandW;
+    out += '<line x1="' + x + '" y1="26" x2="' + x + '" y2="' + (h - 30) + '" stroke="#30363d" stroke-width="1" stroke-dasharray="3,4"/>';
+  }
+  // Period labels at top of chart
+  periods.forEach(function (p, i) {
+    const x = padL + i * bandW + bandW / 2;
+    out += '<text x="' + x + '" y="16" text-anchor="middle" fill="#7d8590" font-size="11" font-weight="700" letter-spacing="1">' + qLabel(p) + '</text>';
+  });
+  // Center line (separates UA above from OPP below)
   out += '<line x1="' + padL + '" y1="' + midY + '" x2="' + (w - padR) + '" y2="' + midY + '" stroke="#30363d" stroke-width="1"/>';
-  out += '<text x="10" y="' + (midY - 30) + '" fill="#F7C414" font-size="11" font-weight="700">UA</text>';
-  out += '<text x="10" y="' + (midY + 38) + '" fill="#f85149" font-size="11" font-weight="700">OPP</text>';
-  sorted.forEach(function (g) {
-    const x = xForTime(g.createdAt);
+  // Left-side UA / OPP labels
+  out += '<text x="8" y="' + (midY - 26) + '" fill="#F7C414" font-size="11" font-weight="700">UA</text>';
+  out += '<text x="8" y="' + (midY + 34) + '" fill="#f85149" font-size="11" font-weight="700">OPP</text>';
+  // Place each goal as a lollipop in its period band, positioned by createdAt within the band
+  goals.forEach(function (g) {
+    const p = g.period || 1;
+    const info = bandInfo[p];
+    if (!info) return;
+    const t = new Date(g.createdAt || 0).getTime() || 0;
+    let x;
+    if (info.tEnd > info.tStart) {
+      const innerPad = 14;
+      x = info.x0 + innerPad + (info.w - 2 * innerPad) * ((t - info.tStart) / (info.tEnd - info.tStart));
+    } else {
+      x = info.x0 + info.w / 2;
+    }
     const isUA = g.statType === 'Goal';
     const y = isUA ? midY - 22 : midY + 22;
     const color = isUA ? '#F7C414' : '#f85149';
-    out += '<circle cx="' + x + '" cy="' + y + '" r="9" fill="' + color + '" stroke="#0d1117" stroke-width="2"/>';
-    out += '<line x1="' + x + '" y1="' + (isUA ? y + 9 : y - 9) + '" x2="' + x + '" y2="' + midY + '" stroke="' + color + '40" stroke-width="2"/>';
+    const textColor = isUA ? '#0d1117' : '#ffffff';
+    let jersey = '';
+    let playerName = '';
+    if (isUA && g.playerId) {
+      const r = state.roster.find(function (x) { return x.recordId === g.playerId; });
+      if (r) { jersey = (r.jersey != null) ? r.jersey : ''; playerName = r.name || ''; }
+    } else if (isUA && g.playerName) {
+      jersey = g.jersey != null ? g.jersey : '';
+      playerName = g.playerName;
+    }
+    let tip = qLabel(p) + ' — ' + (isUA ? 'UA Goal' : 'OPP Goal');
+    if (playerName) tip += ': #' + jersey + ' ' + playerName;
+    // Stem from lollipop to center line
+    out += '<line x1="' + x + '" y1="' + (isUA ? y + 11 : y - 11) + '" x2="' + x + '" y2="' + midY + '" stroke="' + color + 'aa" stroke-width="2"/>';
+    // Lollipop head: clickable group with native title + jersey number
+    out += '<g class="tl-goal" data-tip="' + escXml(tip) + '">';
+    out += '<title>' + escXml(tip) + '</title>';
+    out += '<circle cx="' + x + '" cy="' + y + '" r="11" fill="' + color + '" stroke="#0d1117" stroke-width="2"/>';
+    if (jersey !== '' && jersey != null) {
+      out += '<text x="' + x + '" y="' + (y + 4) + '" text-anchor="middle" font-size="11" font-weight="800" fill="' + textColor + '" pointer-events="none">' + escXml(jersey) + '</text>';
+    }
+    out += '</g>';
   });
   svg.innerHTML = out;
+  // Mobile-friendly tap tooltip — show as a toast
+  Array.prototype.forEach.call(svg.querySelectorAll('.tl-goal'), function (node) {
+    node.addEventListener('click', function () {
+      const tip = node.getAttribute('data-tip');
+      if (tip) toast(tip, 3000);
+    });
+  });
 }
 
 // ----- Report render -----
@@ -1415,13 +1699,13 @@ function renderReport() {
       th('jersey', '#') + th('name', 'Player') + th('pos', 'Pos') +
       th('goal', 'G') + th('assist', 'A') + th('pts', 'Pts') +
       th('shots', 'Sh') + th('sog', 'SOG') + th('shpct', 'Sh%') +
-      th('gb', 'GB') + th('dc', 'DC') + th('ct', 'CT') + th('save', 'Sv') +
+      th('gb', 'GB') + th('dc', 'DC') + th('ct', 'CT') + th('to', 'TO') + th('save', 'Sv') +
     '</tr>';
 
   // Build rows for every roster player (so 0-stat players still appear)
   const rows = [];
   state.roster.forEach(function (r) {
-    const p = byPlayer.get(r.recordId) || { goal:0, assist:0, shot:0, sog:0, gb:0, dc:0, ct:0, save:0 };
+    const p = byPlayer.get(r.recordId) || { goal:0, assist:0, shot:0, sog:0, gb:0, dc:0, ct:0, to:0, save:0 };
     rows.push({ r, p });
   });
 
@@ -1445,6 +1729,7 @@ function renderReport() {
       case 'gb': return p.gb;
       case 'dc': return p.dc;
       case 'ct': return p.ct;
+      case 'to': return p.to;
       case 'save': return p.save;
       default: return 0;
     }
@@ -1483,6 +1768,7 @@ function renderReport() {
       numCell(p.gb) +
       numCell(p.dc) +
       numCell(p.ct) +
+      numCell(p.to) +
       numCell(p.save) +
       '</tr>';
   }).join('') +
@@ -1498,6 +1784,7 @@ function renderReport() {
     '<td class="num nz">' + tot.gb + '</td>' +
     '<td class="num nz">' + tot.dc + '</td>' +
     '<td class="num nz">' + tot.ct + '</td>' +
+    '<td class="num nz">' + tot.to + '</td>' +
     '<td class="num nz">' + tot.save + '</td>' +
   '</tr>';
 
@@ -1509,7 +1796,7 @@ function renderReport() {
     '<th>Sh</th><th>SOG</th><th>Sh%</th>' +
     '<th>GB</th><th>MGB</th><th>GB%</th>' +
     '<th>DC</th><th>DL</th><th>Draw%</th>' +
-    '<th>CT</th><th>Sv</th><th>GA</th></tr>';
+    '<th>CT</th><th>TO</th><th>Sv</th><th>GA</th></tr>';
   const quarters = [1, 2, 3, 4, 5];
   const splitRows = quarters.map(function (q) {
     const qEvents = state.events.filter(function (e) { return e.period === q; });
@@ -1530,6 +1817,7 @@ function renderReport() {
       '<td class="num">' + (t.dlost || '') + '</td>' +
       '<td class="num">' + (t.drawPct == null ? '—' : t.drawPct + '%') + '</td>' +
       '<td class="num">' + (t.ct || '') + '</td>' +
+      '<td class="num">' + (t.to || '') + '</td>' +
       '<td class="num">' + (t.save || '') + '</td>' +
       '<td class="num">' + (t.oppGoal || '') + '</td>' +
     '</tr>';
@@ -1552,6 +1840,7 @@ function renderReport() {
       '<td class="num nz">' + T.dlost + '</td>' +
       '<td class="num nz">' + (T.drawPct == null ? '—' : T.drawPct + '%') + '</td>' +
       '<td class="num nz">' + T.ct + '</td>' +
+      '<td class="num nz">' + T.to + '</td>' +
       '<td class="num nz">' + T.save + '</td>' +
       '<td class="num nz">' + T.oppGoal + '</td>' +
     '</tr>'
