@@ -1255,6 +1255,155 @@
         .score-pin-actions .btn-confirm { background: var(--black); color: var(--gold); }
         .score-pin-actions .btn-confirm:hover { background: var(--gray-900); }
 
+        /* ===== ADMIN-ONLY: Send Pending Bracket Updates ===== */
+        .bracket-admin-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 14px;
+            margin: 12px 0 16px;
+            background: #fffbeb;
+            border: 1px solid var(--gold-stripe, #f5e9b8);
+            border-radius: 10px;
+            flex-wrap: wrap;
+        }
+        .bracket-admin-bar[hidden] { display: none; }
+        .bracket-admin-status {
+            font-size: 13px; color: var(--gray-700, #404040);
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .bracket-admin-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: var(--black, #1a1a1a); color: var(--gold, #F7C414);
+            border: none; padding: 8px 14px;
+            border-radius: 8px;
+            font-family: 'Oswald', sans-serif;
+            font-size: 12.5px; font-weight: 700;
+            letter-spacing: 1.2px; text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.15s, opacity 0.15s;
+        }
+        .bracket-admin-btn:hover:not(:disabled) { background: var(--gray-900, #2a2a2a); }
+        .bracket-admin-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .bracket-admin-btn svg { display: block; }
+        .bracket-admin-count {
+            background: var(--gold, #F7C414); color: var(--black, #1a1a1a);
+            font-size: 11px; font-weight: 700; padding: 2px 8px;
+            border-radius: 10px; letter-spacing: 0;
+        }
+        .bracket-admin-count[hidden] { display: none; }
+
+        .send-pending-modal {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px;
+            animation: installFadeIn 0.18s ease;
+        }
+        .send-pending-modal[hidden] { display: none; }
+        .send-pending-card {
+            background: white;
+            border-radius: 14px;
+            max-width: 540px; width: 100%;
+            max-height: 85vh;
+            padding: 22px 22px 18px;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            animation: installSlideUp 0.22s ease;
+            display: flex; flex-direction: column;
+        }
+        .send-pending-card h3 {
+            margin: 0 0 6px;
+            font-family: 'Oswald', sans-serif;
+            font-size: 18px; letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--black);
+        }
+        .send-pending-card > p {
+            color: var(--gray-700); font-size: 13px; line-height: 1.45;
+            margin: 0 0 14px;
+        }
+        .send-pending-list {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            min-height: 60px;
+            max-height: 320px;
+            border: 1px solid var(--gray-200, #e5e5e5);
+            border-radius: 8px;
+            background: #fafafa;
+            padding: 4px 0;
+            margin-bottom: 10px;
+        }
+        .send-pending-list .send-pending-empty {
+            text-align: center; padding: 22px 14px;
+            color: var(--gray-700); font-size: 13px;
+        }
+        .send-pending-item {
+            display: flex; align-items: baseline; justify-content: space-between;
+            gap: 10px;
+            padding: 9px 14px;
+            border-bottom: 1px solid #ececec;
+            font-size: 13px;
+        }
+        .send-pending-item:last-child { border-bottom: none; }
+        .send-pending-item .game-id {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 700; color: var(--gold-dark, #D4A30E);
+            min-width: 44px; flex-shrink: 0; letter-spacing: 0.5px;
+        }
+        .send-pending-item .game-line {
+            flex: 1; color: var(--gray-900, #2a2a2a);
+            word-break: break-word;
+        }
+        .send-pending-item .game-winner {
+            font-weight: 700; color: var(--black, #1a1a1a);
+        }
+        .send-pending-meta {
+            font-size: 12px; color: var(--gray-700);
+            margin: 6px 2px 12px;
+        }
+        .send-pending-meta strong { color: var(--black); }
+        .send-pending-error {
+            color: #b91c1c; font-size: 12.5px;
+            min-height: 0; margin: 0 0 4px;
+        }
+        .send-pending-error:not(:empty) { padding: 8px 12px; background: #fef2f2; border-radius: 6px; margin-bottom: 10px; }
+        .send-pending-actions { display: flex; gap: 10px; }
+        .send-pending-actions button {
+            flex: 1;
+            padding: 10px 14px;
+            font-family: 'Oswald', sans-serif;
+            font-size: 12.5px; font-weight: 700;
+            letter-spacing: 1.5px; text-transform: uppercase;
+            border-radius: 6px; cursor: pointer; border: none;
+        }
+        .send-pending-actions .btn-cancel {
+            background: var(--gray-100); color: var(--gray-700);
+            border: 1px solid var(--gray-200);
+        }
+        .send-pending-actions .btn-confirm { background: var(--black); color: var(--gold); }
+        .send-pending-actions .btn-confirm:hover:not(:disabled) { background: var(--gray-900); }
+        .send-pending-actions .btn-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Lightweight toast for "email sent" feedback */
+        .bracket-toast {
+            position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(120%);
+            background: var(--black, #1a1a1a); color: var(--gold, #F7C414);
+            padding: 12px 22px;
+            border-radius: 8px;
+            font-family: 'Oswald', sans-serif;
+            font-size: 13px; font-weight: 600; letter-spacing: 1px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            opacity: 0;
+            transition: all 0.25s ease;
+            z-index: 10000;
+            max-width: 92vw; text-align: center;
+        }
+        .bracket-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .bracket-toast.error { background: #b91c1c; color: white; }
+
         /* ===== LIVE NOW STICKY BANNER ===== */
         /* Shown at the top of the page when any game is in progress (non-final
            with at least one score). Sticky so it stays visible while parents
@@ -2051,8 +2200,39 @@
             </div>
         </div>
 
+        <!-- Admin-only "Send Updates" strip — shown when score-edit PIN is unlocked.
+             Polls /lacrosse/pending-updates on load to show how many results are queued. -->
+        <div class="bracket-admin-bar" id="bracketAdminBar" hidden>
+            <div class="bracket-admin-status" id="bracketAdminStatus">Checking for pending updates&hellip;</div>
+            <button type="button" class="bracket-admin-btn" id="btnSendPending" disabled>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M2 3h12v10H2zM2 3l6 5 6-5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                </svg>
+                <span>Send Updates</span>
+                <span class="bracket-admin-count" id="bracketAdminCount" hidden>0</span>
+            </button>
+        </div>
+
         <div id="bracketBody">
             <div class="bracket-empty">Loading bracket&hellip;</div>
+        </div>
+    </div>
+</div>
+
+<!-- "Send pending updates" confirm modal — lists each queued game so Charles can
+     scan before triggering the email. Tied to the bracket IIFE's send logic. -->
+<div class="send-pending-modal" id="sendPendingModal" hidden role="dialog" aria-modal="true" aria-labelledby="sendPendingTitle">
+    <div class="send-pending-card">
+        <h3 id="sendPendingTitle">Send Bracket Updates</h3>
+        <p id="sendPendingSubtitle">Review the games below, then send one email to all active subscribers.</p>
+        <div class="send-pending-list" id="sendPendingList">
+            <div class="send-pending-empty">Loading&hellip;</div>
+        </div>
+        <div class="send-pending-error" id="sendPendingError" aria-live="polite"></div>
+        <div class="send-pending-meta" id="sendPendingMeta"></div>
+        <div class="send-pending-actions">
+            <button type="button" class="btn-cancel" id="sendPendingCancel">Cancel</button>
+            <button type="button" class="btn-confirm" id="sendPendingConfirm" disabled>Send Email</button>
         </div>
     </div>
 </div>
@@ -3500,11 +3680,245 @@ document.addEventListener('DOMContentLoaded', () => {
         if (allGames.length > 0) renderCurrent();
     });
 
+    // ====================================================================
+    // ADMIN: Send Pending Bracket Updates
+    // The button + modal are gated by the same score-edit PIN as live-scoring.
+    // Flow: show button when PIN is unlocked → tap fetches preview → modal
+    // lists queued games → Confirm posts the email and marks rows Notified.
+    // ====================================================================
+    const PIN_KEY_SHARED = 'uaglax_score_pin_v1';
+    const PENDING_GET_URL  = 'https://vh-api.charles-9e5.workers.dev/lacrosse/pending-updates';
+    const PENDING_SEND_URL = 'https://vh-api.charles-9e5.workers.dev/lacrosse/send-pending-updates';
+
+    function readPin() {
+        try { return localStorage.getItem(PIN_KEY_SHARED) || ''; } catch (_) { return ''; }
+    }
+    function bracketToast(msg, isError) {
+        let t = document.getElementById('bracketToast');
+        if (!t) {
+            t = document.createElement('div');
+            t.id = 'bracketToast';
+            t.className = 'bracket-toast';
+            document.body.appendChild(t);
+        }
+        t.textContent = msg;
+        t.classList.toggle('error', !!isError);
+        // Force reflow so the transition runs even if the toast was just added
+        void t.offsetWidth;
+        t.classList.add('show');
+        clearTimeout(t._hideTimer);
+        t._hideTimer = setTimeout(function () { t.classList.remove('show'); }, 3200);
+    }
+    function escAdmin(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function setBtnState(busy, count) {
+        const bar    = document.getElementById('bracketAdminBar');
+        const btn    = document.getElementById('btnSendPending');
+        const status = document.getElementById('bracketAdminStatus');
+        const badge  = document.getElementById('bracketAdminCount');
+        if (!bar || !btn || !status || !badge) return;
+        if (busy) {
+            btn.disabled = true;
+            status.textContent = 'Checking for pending updates…';
+            badge.hidden = true;
+            return;
+        }
+        const n = count || 0;
+        if (n === 0) {
+            btn.disabled = true;
+            status.textContent = 'No new results queued. Updates send automatically when you confirm a batch.';
+            badge.hidden = true;
+        } else {
+            btn.disabled = false;
+            status.textContent = n + ' game' + (n === 1 ? '' : 's') + ' ready to email subscribers.';
+            badge.textContent = String(n);
+            badge.hidden = false;
+        }
+    }
+
+    // Cached preview between "check count" and "open modal" so the modal
+    // doesn't have to re-fetch when the user clicks the button.
+    let pendingCache = null;
+
+    async function refreshPendingCount() {
+        const pin = readPin();
+        if (!pin) return;
+        setBtnState(true, 0);
+        try {
+            const res = await fetch(PENDING_GET_URL, {
+                cache: 'no-cache',
+                headers: { 'X-UAGLAX-PIN': pin }
+            });
+            if (res.status === 401) {
+                // PIN invalid — hide the admin bar quietly
+                document.getElementById('bracketAdminBar').hidden = true;
+                return;
+            }
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            pendingCache = data;
+            setBtnState(false, data.count || 0);
+        } catch (err) {
+            console.warn('pending-updates check failed:', err);
+            document.getElementById('bracketAdminStatus').textContent =
+                'Could not check pending updates (' + err.message + ')';
+        }
+    }
+
+    function openSendModal() {
+        const modal = document.getElementById('sendPendingModal');
+        const list  = document.getElementById('sendPendingList');
+        const meta  = document.getElementById('sendPendingMeta');
+        const err   = document.getElementById('sendPendingError');
+        const ok    = document.getElementById('sendPendingConfirm');
+        if (!modal) return;
+        err.textContent = '';
+        ok.disabled = true;
+        list.innerHTML = '<div class="send-pending-empty">Loading…</div>';
+        meta.textContent = '';
+        modal.hidden = false;
+        document.body.style.overflow = 'hidden';
+        // Use cached preview if it's fresh; otherwise refetch.
+        const promise = pendingCache
+            ? Promise.resolve(pendingCache)
+            : (async function () {
+                const pin = readPin();
+                const res = await fetch(PENDING_GET_URL, {
+                    cache: 'no-cache', headers: { 'X-UAGLAX-PIN': pin }
+                });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.json();
+            })();
+        promise.then(function (data) {
+            renderPendingList(data);
+            ok.disabled = !(data && data.count > 0);
+        }).catch(function (ex) {
+            list.innerHTML = '<div class="send-pending-empty">Could not load updates.</div>';
+            err.textContent = ex.message || String(ex);
+        });
+    }
+
+    function renderPendingList(data) {
+        const list  = document.getElementById('sendPendingList');
+        const meta  = document.getElementById('sendPendingMeta');
+        const title = document.getElementById('sendPendingTitle');
+        if (!list || !meta || !title) return;
+        const games = (data && data.games) || [];
+        if (games.length === 0) {
+            list.innerHTML = '<div class="send-pending-empty">Nothing queued. New score updates will appear here.</div>';
+            title.textContent = 'No Updates To Send';
+            meta.textContent = '';
+            return;
+        }
+        title.textContent = 'Send ' + games.length + ' Bracket Update' + (games.length === 1 ? '' : 's');
+        list.innerHTML = games.map(function (g) {
+            const score = (g.topScore == null && g.bottomScore == null)
+                ? ''
+                : ' ' + (g.topScore == null ? '?' : g.topScore) + '–' + (g.bottomScore == null ? '?' : g.bottomScore);
+            const matchup = g.isBye
+                ? escAdmin(g.topTeam) + ' (bye)'
+                : escAdmin(g.topTeam) + ' vs ' + escAdmin(g.bottomTeam) + score;
+            const winnerHtml = g.winner
+                ? '<span class="game-winner">→ ' + escAdmin(g.winner) + '</span>'
+                : '';
+            return ''
+                + '<div class="send-pending-item">'
+                +     '<span class="game-id">' + escAdmin(g.gameId) + '</span>'
+                +     '<span class="game-line">' + matchup + ' ' + winnerHtml + '</span>'
+                + '</div>';
+        }).join('');
+        meta.innerHTML = 'Will email <strong>' + (data.recipientCount || 0) + '</strong> recipient'
+            + ((data.recipientCount || 0) === 1 ? '' : 's')
+            + ' (subscribers + you).';
+    }
+
+    function closeSendModal() {
+        const modal = document.getElementById('sendPendingModal');
+        if (!modal) return;
+        modal.hidden = true;
+        document.body.style.overflow = '';
+    }
+
+    async function confirmSend() {
+        const ok  = document.getElementById('sendPendingConfirm');
+        const err = document.getElementById('sendPendingError');
+        const pin = readPin();
+        if (!pin) {
+            err.textContent = 'PIN is missing — unlock score editing first.';
+            return;
+        }
+        ok.disabled = true;
+        err.textContent = '';
+        const originalLabel = ok.textContent;
+        ok.textContent = 'Sending…';
+        try {
+            const res = await fetch(PENDING_SEND_URL, {
+                method: 'POST',
+                headers: { 'X-UAGLAX-PIN': pin, 'Content-Type': 'application/json' }
+            });
+            const data = await res.json().catch(function () { return {}; });
+            if (!res.ok) throw new Error(data.error || data.details || ('HTTP ' + res.status));
+            if (!data.sent) {
+                throw new Error(data.reason || 'Email was not sent.');
+            }
+            const recip = data.recipients || 0;
+            const failed = data.failed || 0;
+            const failNote = failed > 0 ? ' (' + failed + ' failed)' : '';
+            bracketToast('Sent ' + data.count + ' update' + (data.count === 1 ? '' : 's') + ' to ' + recip + ' recipient' + (recip === 1 ? '' : 's') + failNote, false);
+            pendingCache = null;
+            closeSendModal();
+            // Re-check count so the badge updates
+            await refreshPendingCount();
+        } catch (ex) {
+            err.textContent = ex.message || String(ex);
+            ok.disabled = false;
+            bracketToast('Send failed: ' + (ex.message || ex), true);
+        } finally {
+            ok.textContent = originalLabel;
+        }
+    }
+
+    function wireAdminUi() {
+        const bar = document.getElementById('bracketAdminBar');
+        const btn = document.getElementById('btnSendPending');
+        const cancelBtn = document.getElementById('sendPendingCancel');
+        const confirmBtn = document.getElementById('sendPendingConfirm');
+        const modal = document.getElementById('sendPendingModal');
+        if (!bar || !btn) return;
+        // Visibility: only if PIN already saved on this device
+        const hasPin = !!readPin();
+        bar.hidden = !hasPin;
+        if (hasPin) refreshPendingCount();
+        // React if PIN gets unlocked/cleared on another tab or via the lock UI
+        window.addEventListener('storage', function (e) {
+            if (e.key === PIN_KEY_SHARED) {
+                const nowHas = !!readPin();
+                bar.hidden = !nowHas;
+                if (nowHas) refreshPendingCount();
+            }
+        });
+        btn.addEventListener('click', openSendModal);
+        cancelBtn.addEventListener('click', closeSendModal);
+        confirmBtn.addEventListener('click', confirmSend);
+        // Close on backdrop click
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) closeSendModal();
+        });
+        // Esc to close
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && !modal.hidden) closeSendModal();
+        });
+    }
+
     // Initial load + periodic refresh (every 90s — light, mostly useful on game days)
     function start() {
         loadBracket();
         if (refreshTimer) clearInterval(refreshTimer);
         refreshTimer = setInterval(loadBracket, 90 * 1000);
+        wireAdminUi();
     }
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', start);
