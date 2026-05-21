@@ -1478,15 +1478,49 @@
             opacity: 0.7;
             flex-shrink: 0;
         }
+        /* The banner is now a flex row of two children: a transparent tap-area
+           button that holds the score + matchup (click = scroll to schedule)
+           and a small FEED pill on the right that links to the live feed page. */
+        .live-now-tap {
+            flex: 1; min-width: 0;
+            display: flex; align-items: center; gap: 14px;
+            background: transparent;
+            border: 0;
+            padding: 0;
+            color: inherit;
+            font: inherit;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .live-now-tap:focus { outline: none; }
+        .live-now-feed-pill {
+            flex-shrink: 0;
+            background: var(--gold);
+            color: var(--black);
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 1.4px;
+            text-decoration: none;
+            text-transform: uppercase;
+            transition: filter 0.15s, transform 0.05s;
+            white-space: nowrap;
+            font-family: 'Oswald', sans-serif;
+        }
+        .live-now-feed-pill:hover { filter: brightness(1.08); }
+        .live-now-feed-pill:active { transform: translateY(1px); }
         @media (max-width: 600px) {
             .live-now {
                 padding: calc(8px + env(safe-area-inset-top, 0px)) 14px 8px;
                 gap: 10px;
             }
+            .live-now-tap { gap: 10px; }
             .live-now-label { font-size: 10px; letter-spacing: 2px; }
             .live-now-matchup { font-size: 12px; }
             .live-now-score { font-size: 20px; letter-spacing: 1px; }
             .live-now-arrow { font-size: 14px; }
+            .live-now-feed-pill { font-size: 10px; padding: 5px 10px; letter-spacing: 1.2px; }
             body.live-banner-on {
                 padding-top: calc(env(safe-area-inset-top, 0px) + 43px);
             }
@@ -1841,13 +1875,16 @@
 <!-- LIVE NOW banner — sits just below the team photo. Sticks to the top of
      the viewport when scrolled, with safe-area-inset-top so it never tucks
      under the iOS status bar on installed PWAs. Populated/shown by render(). -->
-<a class="live-now" id="liveNow" href="#schedule" hidden>
-    <span class="live-now-pulse" aria-hidden="true"></span>
-    <span class="live-now-label">LIVE</span>
-    <span class="live-now-matchup" id="liveNowMatchup"></span>
-    <span class="live-now-score" id="liveNowScore"></span>
-    <span class="live-now-arrow" aria-hidden="true">&rsaquo;</span>
-</a>
+<div class="live-now" id="liveNow" hidden>
+    <button type="button" class="live-now-tap" id="liveNowTap" aria-label="Jump to live game in schedule">
+        <span class="live-now-pulse" aria-hidden="true"></span>
+        <span class="live-now-label">LIVE</span>
+        <span class="live-now-matchup" id="liveNowMatchup"></span>
+        <span class="live-now-score" id="liveNowScore"></span>
+        <span class="live-now-arrow" aria-hidden="true">&rsaquo;</span>
+    </button>
+    <a class="live-now-feed-pill" id="liveNowFeed" href="uaglax-live.html" aria-label="Open the live stats feed">FEED&nbsp;&rarr;</a>
+</div>
 
 <!-- Install-to-Home-Screen pill — JS unhides on iOS/Android when not standalone -->
 <div class="install-pwa" id="installPwa" hidden>
@@ -3241,12 +3278,22 @@ document.addEventListener('DOMContentLoaded', () => {
         // landed. Falls back to the default href="#schedule" anchor jump
         // if the row isn't on the page yet.
         const liveBanner = document.getElementById('liveNow');
-        if (liveBanner) {
-            liveBanner.addEventListener('click', function (e) {
+        const liveTap    = document.getElementById('liveNowTap');
+        if (liveTap && liveBanner) {
+            liveTap.addEventListener('click', function (e) {
                 const targetId = liveBanner.getAttribute('data-target-id');
-                if (!targetId) return;  // no live game yet — let the anchor work
+                if (!targetId) {
+                    // Fallback: jump to the schedule section
+                    const sched = document.getElementById('schedule');
+                    if (sched) { e.preventDefault(); sched.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+                    return;
+                }
                 const row = document.querySelector('.game-row[data-game-id="' + targetId + '"]');
-                if (!row) return;
+                if (!row) {
+                    const sched = document.getElementById('schedule');
+                    if (sched) { e.preventDefault(); sched.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+                    return;
+                }
                 e.preventDefault();
                 row.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 row.classList.add('flash-target');

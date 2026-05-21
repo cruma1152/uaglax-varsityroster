@@ -84,6 +84,40 @@
   #entry-panel { display:none; }
   #entry-panel.show { display:grid; grid-template-columns: 2fr 1fr; flex:1; min-height:0; }
 
+  /* Start Game strip — shown above the stat grid when the chosen game has
+     no score yet. Tap to PATCH the Schedule row to 0-0, which lights up
+     the LIVE banner on the roster site AND lets the live feed page
+     auto-detect the game as in progress. Hidden once score is set. */
+  #start-game-strip { display:none; grid-column: 1 / 2; padding: 14px 18px 0; }
+  #start-game-strip.show { display:block; }
+  #start-game-btn {
+    width: 100%;
+    background: linear-gradient(180deg, #22c55e, #15803d);
+    color: #fff;
+    border: 0;
+    border-radius: 12px;
+    padding: 18px;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(34, 197, 94, 0.35);
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  #start-game-btn:hover { filter: brightness(1.05); }
+  #start-game-btn:active { transform: translateY(1px); }
+  #start-game-btn[disabled] { opacity: 0.6; cursor: wait; }
+  #start-game-btn .dot { width: 12px; height: 12px; background: #fff; border-radius: 50%; box-shadow: 0 0 0 3px rgba(255,255,255,0.25); animation: sgPulse 1.4s ease-in-out infinite; }
+  @keyframes sgPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+  #start-game-hint {
+    text-align: center;
+    font-size: 12px;
+    color: #7d8590;
+    margin-top: 8px;
+    letter-spacing: 0.5px;
+  }
+
   /* Locked overlay (when entry tab is shown but PIN not entered) */
   #lock-overlay { display:none; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; color:#7d8590; text-align:center; grid-column: 1 / -1; }
   #lock-overlay.show { display:flex; }
@@ -469,6 +503,17 @@
       <p>Tap Unlock to enter the PIN. The Summary and Report tabs are open to anyone.</p>
       <button onclick="toggleUnlock()">Unlock</button>
     </div>
+    <!-- Pre-game start strip. Shown only when the game has no score yet
+         (and the keeper is unlocked). Tapping it sets the Schedule row's
+         score to 0-0, which surfaces the live banner on the roster site
+         and tells the live feed page the game is in progress. -->
+    <div id="start-game-strip">
+      <button id="start-game-btn" type="button" onclick="startGame()">
+        <span class="dot" aria-hidden="true"></span>
+        <span>Start Game</span>
+      </button>
+      <div id="start-game-hint">Sets the score to 0–0 and lights up the parent live feed.</div>
+    </div>
     <div id="stat-grid">
       <button class="stat-btn goal" onclick="selectStat('Goal')">GOAL</button>
       <button class="stat-btn assist" onclick="selectStat('Assist')">ASSIST</button>
@@ -808,6 +853,56 @@ function selectGame(g) {
   // Initial tab: if locked, default to Summary (no PIN); if unlocked, Entry.
   switchTab(state.locked ? 'summary' : 'entry');
   updateLockUI();
+  updateStartGameUI();
+}
+
+// ============================================================================
+//   Start Game — flips the chosen Schedule row from "no score" to 0-0 so
+//   the parent-facing live banner + live feed page can see it as in progress.
+//   Same PIN as everything else. Hides the button on success.
+// ============================================================================
+async function startGame() {
+  if (!state.game) return;
+  if (state.locked || !state.pin) { toast('Unlock first'); return; }
+  const btn = $('start-game-btn');
+  if (btn) { btn.disabled = true; }
+  try {
+    const res = await fetch(API_BASE + '/lacrosse/schedule/' + state.game.recordId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-UAGLAX-PIN': state.pin },
+      body: JSON.stringify({ ourScore: 0, oppScore: 0 })
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      if (res.status === 401) { toast('PIN rejected'); }
+      else { toast('Start failed (' + res.status + ')'); }
+      console.error('startGame failed', res.status, t);
+      if (btn) { btn.disabled = false; }
+      return;
+    }
+    // Update local state so the button hides without a full refetch
+    state.game.ourScore = 0;
+    state.game.opponentScore = 0;
+    toast('Game started — 0-0. Live feed is on.');
+    updateStartGameUI();
+  } catch (err) {
+    console.error('startGame error', err);
+    toast('Network error');
+    if (btn) { btn.disabled = false; }
+  }
+}
+
+function updateStartGameUI() {
+  const strip = $('start-game-strip');
+  if (!strip) return;
+  const g = state.game;
+  // Only show when: a game is loaded, the keeper is unlocked, the game
+  // hasn't been started (no score on either side), and the game isn't final.
+  const noScore = g && (g.ourScore == null) && (g.opponentScore == null);
+  const show = !!(g && !state.locked && noScore && !g.final);
+  strip.classList.toggle('show', show);
+  const btn = $('start-game-btn');
+  if (btn) btn.disabled = false;
 }
 
 function switchGame() {
@@ -897,6 +992,8 @@ function updateLockUI() {
   $('lock-overlay').classList.toggle('show', state.locked);
   // Undo button only useful when unlocked
   $('undo-btn').style.display = state.locked ? 'none' : '';
+  // The Start Game strip's visibility depends on the lock state too.
+  if (typeof updateStartGameUI === 'function') updateStartGameUI();
 }
 
 $('pin-input').addEventListener('keydown', function (e) { if (e.key === 'Enter') submitPin(); });
