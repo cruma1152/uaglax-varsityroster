@@ -1189,6 +1189,11 @@ function confirmQuarterChange() {
   updateQuarterSegments();
   $('qconfirm').classList.remove('show');
   toast('Now tracking ' + qLabel(state.period));
+  // Drop a synthetic "Period Start" event so the live feed page can render
+  // a "Start of Q2" divider. Skipped when not actively in a game.
+  if (state.game && !state.locked) {
+    logEvent({ statType: 'Period Start', playerId: null });
+  }
 }
 function cancelQuarterChange() { state.pendingQuarter = null; $('qconfirm').classList.remove('show'); }
 function updateQuarterSegments() {
