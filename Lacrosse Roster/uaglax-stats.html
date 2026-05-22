@@ -1024,15 +1024,23 @@ async function refresh() {
     //   2. _failed   — POST returned an error; keep visible so the keeper
     //                  can see something went wrong and retry
     //   3. recently-synced (has recordId) but missing from this server
-    //      response — usually because the GET fired before Airtable's
-    //      index caught up with the just-completed POST. Without this we
-    //      get a brief "event vanishes then reappears" flicker.
+    //      response, AND within a short staleness window. This bridges the
+    //      brief delay between a POST landing and the next GET reflecting
+    //      it. Past that window we trust the server (so events deleted in
+    //      Airtable don't linger forever in the local view).
+    const STALE_GRACE_MS = 30 * 1000;
+    const now = Date.now();
     const serverIds = new Set(serverEvents.map(function (e) { return e.recordId; }));
     const queued = readQueue();
     const queuedIds = new Set(queued.map(function (e) { return e._localId; }));
     const localOnly = (state.events || []).filter(function (e) {
       if (e._pending || e._failed) return true;
-      if (e.recordId && !serverIds.has(e.recordId)) return true;
+      if (e.recordId && !serverIds.has(e.recordId)) {
+        // Only keep within the grace period — past that, server's absence
+        // is treated as a real delete and we let the event go.
+        if (e._syncedAt && (now - e._syncedAt) > STALE_GRACE_MS) return false;
+        return true;
+      }
       return false;
     }).filter(function (e) {
       // Don't double-count anything that's already in the queue list we'll concat below
@@ -1110,6 +1118,7 @@ async function flushQueue() {
   let q = readQueue();
   while (q.length) {
     const evt = q[0];
+    let outcome = 'ok';  // 'ok' | 'permanent-fail' | 'halt'
     try {
       const res = await fetch(API_BASE + '/lacrosse/stats/events', {
         method: 'POST',
@@ -1122,28 +1131,56 @@ async function flushQueue() {
           clock: ''
         })
       });
-      if (!res.ok) {
-        if (res.status === 401) { toast('PIN rejected — re-lock and unlock'); state.locked = true; state.pin=''; localStorage.removeItem('uaglaxPin'); updateLockUI(); break; }
+      if (res.ok) {
+        const data = await res.json();
+        const idx = state.events.findIndex(function (e) { return e._localId === evt._localId; });
+        if (idx >= 0) {
+          state.events[idx].recordId  = data.recordId;
+          state.events[idx]._synced   = true;
+          state.events[idx]._syncedAt = Date.now();
+          state.events[idx]._pending  = false;
+          state.events[idx]._failed   = false;
+          state.events[idx].event     = data.event;
+        }
+        outcome = 'ok';
+      } else if (res.status === 401) {
+        // PIN issue — halt the whole queue so the keeper sees the lock UI.
+        toast('PIN rejected — re-lock and unlock');
+        state.locked = true; state.pin=''; localStorage.removeItem('uaglaxPin'); updateLockUI();
+        outcome = 'halt';
+      } else if (res.status >= 500) {
+        // Server-side transient. Leave in queue, halt loop, retry on next refresh.
         const idx = state.events.findIndex(function (e) { return e._localId === evt._localId; });
         if (idx >= 0) { state.events[idx]._pending = false; state.events[idx]._failed = true; }
-        break;
+        outcome = 'halt';
+      } else {
+        // 4xx other than 401 → permanent rejection for THIS event (bad type,
+        // missing player, etc.). Mark failed and skip past it so the rest of
+        // the queue can still flow. Without this, one bad tap jams everything
+        // behind it (the Turnover-mismatch incident on 2026-05-21 was this).
+        const idx = state.events.findIndex(function (e) { return e._localId === evt._localId; });
+        if (idx >= 0) {
+          state.events[idx]._pending    = false;
+          state.events[idx]._failed     = true;
+          state.events[idx]._failReason = 'rejected (' + res.status + ')';
+        }
+        outcome = 'permanent-fail';
       }
-      const data = await res.json();
-      const idx = state.events.findIndex(function (e) { return e._localId === evt._localId; });
-      if (idx >= 0) {
-        state.events[idx].recordId = data.recordId;
-        state.events[idx]._synced = true;
-        state.events[idx]._pending = false;
-        state.events[idx]._failed = false;
-        state.events[idx].event = data.event;
-      }
-      q.shift();
-      writeQueue(q);
     } catch (err) {
+      // Network error — halt loop, retry next refresh.
       const idx = state.events.findIndex(function (e) { return e._localId === evt._localId; });
       if (idx >= 0) { state.events[idx]._pending = false; state.events[idx]._failed = true; }
-      break;
+      outcome = 'halt';
     }
+
+    if (outcome === 'ok' || outcome === 'permanent-fail') {
+      // Either it landed or it never will — drop from queue so we move on.
+      q.shift();
+      writeQueue(q);
+      continue;
+    }
+    // outcome === 'halt' — leave the event at head of queue, exit loop.
+    break;
   }
   state.syncing = false;
   setSyncStatus();
