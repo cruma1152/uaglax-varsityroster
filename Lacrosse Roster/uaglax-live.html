@@ -616,25 +616,33 @@ async function fetchEvents(gameId) {
 
 // ============================================================================
 // LIVE GAME PICKER
-// Picks today's non-final game. If none, returns the most recent non-final
-// game (catches edge cases like games that ran past midnight or schedule typos).
+// Mirrors the logic of the LIVE banner on index.html: any non-final game with
+// a score wins. That way starting a game from the stats app (or unlocking the
+// schedule lock on the phone and entering 0-0) is the trigger — date doesn't
+// matter. Falls back to today's pregame / today's already-final game.
 // ============================================================================
 function pickLiveGame(games) {
   if (!games || !games.length) return null;
   const today = todayEasternISO();
-  // Normalise date to YYYY-MM-DD
   const norm = function (g) { return (g.date || '').slice(0, 10); };
+  const hasScore = function (g) {
+    return typeof g.ourScore === 'number' || typeof g.opponentScore === 'number';
+  };
 
-  // Highest-priority: today's non-final game
-  const todaysLive = games.filter(function (g) { return norm(g) === today && !g.final; });
-  if (todaysLive.length) {
-    // If multiple, take the one with most recently saved score (or just first).
-    return todaysLive[0];
-  }
-  // Today's game that's already final (still show as the headline)
-  const todaysFinal = games.filter(function (g) { return norm(g) === today && g.final; });
-  if (todaysFinal.length) return todaysFinal[0];
-
+  // 1. Today's non-final game with a score — clearest "live now"
+  let live = games.find(function (g) { return norm(g) === today && !g.final && hasScore(g); });
+  if (live) return live;
+  // 2. ANY non-final game with a score — catches test games on other dates,
+  //    games that ran past midnight, or schedule date typos. This matches the
+  //    LIVE banner logic on the roster page.
+  live = games.find(function (g) { return !g.final && hasScore(g); });
+  if (live) return live;
+  // 3. Today's non-final game without a score — pregame headline
+  live = games.find(function (g) { return norm(g) === today && !g.final; });
+  if (live) return live;
+  // 4. Today's already-final game — still headline the result
+  live = games.find(function (g) { return norm(g) === today && g.final; });
+  if (live) return live;
   return null;
 }
 
