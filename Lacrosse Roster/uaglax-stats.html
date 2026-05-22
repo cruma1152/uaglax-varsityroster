@@ -137,18 +137,26 @@
     transition: transform .05s ease, background .12s ease;
   }
   .stat-btn:active { transform:scale(.97); }
-  .stat-btn.goal { background:#3fb95020; border-color:#3fb95080; color:#3fb950; }
-  .stat-btn.assist { background:#3fb95010; border-color:#3fb95060; color:#7ee787; }
-  .stat-btn.shot { background:#388bfd15; border-color:#388bfd80; color:#79c0ff; }
-  .stat-btn.sog { background:#388bfd25; border-color:#388bfd; color:#388bfd; }
-  .stat-btn.gb { background:#d2992210; border-color:#d2992260; color:#e3b341; }
-  .stat-btn.mgb { background:#80582010; border-color:#80582060; color:#b58030; }
-  .stat-btn.draw { background:#a371f710; border-color:#a371f780; color:#bc8cff; }
-  .stat-btn.dlost { background:#5d3d9610; border-color:#5d3d9680; color:#7f5fc5; }
-  .stat-btn.ct { background:#db6d2810; border-color:#db6d2880; color:#ff9b50; }
-  .stat-btn.to { background:#f8514910; border-color:#f8514970; color:#ff7b72; }
-  .stat-btn.save { background:#2ea04310; border-color:#3fb95080; color:#56d364; }
-  .stat-btn.opp { background:#f8514920; border-color:#f85149; color:#f85149; }
+  /* Stat keeper button palette — mirrors the .event-type pills on the
+     parent-facing live feed so both surfaces share one color language.
+     Goal and Opp Goal get SOLID fills (matching the marquee pill treatment
+     because they're the scoring events); everything else uses the same
+     pastel tint + colored text pattern as the pills. */
+  .stat-btn.goal   { background:#16a34a; border-color:#16a34a; color:#ffffff; }
+  .stat-btn.opp    { background:#dc2626; border-color:#dc2626; color:#ffffff; }
+  .stat-btn.assist { background:#dcfce7; border-color:#86efac; color:#16a34a; }
+  .stat-btn.save   { background:#dcfce7; border-color:#86efac; color:#15803d; }
+  .stat-btn.shot   { background:#2563eb; border-color:#2563eb; color:#ffffff; }
+  .stat-btn.sog    { background:#bfdbfe; border-color:#60a5fa; color:#1e40af; }
+  .stat-btn.draw   { background:#7c3aed; border-color:#7c3aed; color:#ffffff; }
+  .stat-btn.dlost  { background:#ddd6fe; border-color:#a78bfa; color:#6d28d9; }
+  .stat-btn.gb     { background:#ea580c; border-color:#ea580c; color:#ffffff; }
+  .stat-btn.mgb    { background:#fed7aa; border-color:#fb923c; color:#9a3412; }
+  .stat-btn.ct     { background:#F7C414; border-color:#F7C414; color:#1a1a1a; }
+  .stat-btn.to     { background:#fee2e2; border-color:#fca5a5; color:#b91c1c; }
+  /* Sub-label text under the big button name (e.g., "shot on goal" under SOG).
+     Inherits the button's color but at lower opacity so it's a secondary read. */
+  .stat-btn small { opacity: 0.7; }
   .stat-btn small { font-size:13px; font-weight:500; opacity:.8; margin-top:4px; letter-spacing:0; }
 
   /* Event feed */
