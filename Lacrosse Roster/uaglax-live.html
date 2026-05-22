@@ -242,6 +242,22 @@
     font-size: 13px;
     letter-spacing: 0.5px;
   }
+  /* Pill colors mirror the stat keeper app's button palette so parents and
+     the sideline keeper see the same color language. Goals (both sides) get
+     SOLID pills because they're the marquee events; everything else is a
+     soft tint of the same hue family. Map:
+       Goal       → green   (solid)
+       Opp Goal   → red     (solid)
+       Assist     → light green tint
+       Save       → light green tint
+       Shot       → light blue tint
+       SOG        → stronger blue tint
+       Draw Ctrl  → light purple tint
+       Draw Lost  → softer purple tint
+       Ground Ball→ gold/yellow tint
+       Missed GB  → lighter yellow tint
+       Caused TO  → orange tint
+       Turnover   → red tint */
   .event-type {
     display: inline-block;
     padding: 3px 8px;
@@ -254,16 +270,18 @@
     color: var(--gray-700);
     white-space: nowrap;
   }
-  .event-type.goal { background: var(--gold); color: var(--black); }
-  .event-type.opp-goal { background: var(--gray-200); color: var(--gray-900); }
-  .event-type.assist { background: #dbeafe; color: var(--blue); }
-  .event-type.save { background: #dcfce7; color: var(--green); }
-  .event-type.shot, .event-type.sog { background: var(--gold-bg); color: var(--gold-dark); }
-  .event-type.draw-control { background: #fef3c7; color: #92400e; }
-  .event-type.draw-lost { background: var(--gray-100); color: var(--gray-500); }
-  .event-type.ground-ball { background: #f0fdf4; color: var(--green); }
-  .event-type.missed-gb { background: var(--gray-100); color: var(--gray-500); }
-  .event-type.caused-turnover { background: #ede9fe; color: #6d28d9; }
+  .event-type.goal              { background: #16a34a; color: #ffffff; }
+  .event-type.opp-goal          { background: #dc2626; color: #ffffff; }
+  .event-type.assist            { background: #dcfce7; color: #16a34a; }
+  .event-type.save              { background: #dcfce7; color: #15803d; }
+  .event-type.shot              { background: #dbeafe; color: #2563eb; }
+  .event-type.sog               { background: #bfdbfe; color: #1e40af; }
+  .event-type.draw-control      { background: #f3e8ff; color: #7c3aed; }
+  .event-type.draw-lost         { background: #ede9fe; color: #8b5cf6; }
+  .event-type.ground-ball       { background: #fef3c7; color: #b45309; }
+  .event-type.missed-gb         { background: #fef9c3; color: #a16207; }
+  .event-type.caused-turnover   { background: #ffedd5; color: #c2410c; }
+  .event-type.turnover          { background: #fee2e2; color: #b91c1c; }
   .event-player {
     font-size: 14px;
     font-weight: 600;
@@ -486,10 +504,14 @@
 // ============================================================================
 // CONFIG
 // ============================================================================
-const API_BASE      = 'https://vh-api.charles-9e5.workers.dev';
-const POLL_INTERVAL = 6000;            // ms — events refresh cadence
-const GAMES_INTERVAL = 30000;          // ms — game record (score/final) refresh
-const PIN_KEY       = 'uaglax_score_pin_v1';   // matches the stats app + roster
+const API_BASE             = 'https://vh-api.charles-9e5.workers.dev';
+const POLL_INTERVAL        = 6000;     // ms — events refresh cadence (while live)
+const GAMES_INTERVAL_LIVE  = 30000;    // ms — game record refresh (live game)
+const GAMES_INTERVAL_WAIT  = 8000;     // ms — faster poll when waiting for a
+                                       // game to start (no game / pregame state),
+                                       // so the page flips to LIVE within seconds
+                                       // of the stats keeper hitting Start Game.
+const PIN_KEY              = 'uaglax_score_pin_v1';  // matches the stats app + roster
 
 // Events visible in PUBLIC mode. Admin mode shows everything.
 const PUBLIC_TYPES = new Set(['Goal', 'Assist', 'Save', 'Opp Goal', 'Period Start']);
@@ -982,6 +1004,9 @@ async function refreshGames() {
   }
   renderScoreboard();
   renderFeed();
+  // If we just transitioned out of "waiting for game to start" into live (or
+  // vice versa), restart polling at the appropriate cadence.
+  ensurePollingCadence();
 }
 
 async function refreshEvents(force) {
@@ -1003,27 +1028,54 @@ async function refreshEvents(force) {
   // Update known set AFTER render so "is-new" highlight gets a chance
   newEvents.forEach(function (e) { if (e.recordId) state.knownIds.add(e.recordId); });
   state.initialLoad = false;
+  // The first event flips a pregame game to live — adjust polling cadence.
+  ensurePollingCadence();
 }
 
 function startPolling() {
   stopPolling();
+  // Events poll always at the fast rate while a game is live; harmless when
+  // there's no game (the fetch short-circuits inside refreshEvents).
   state.pollTimer = setInterval(refreshEvents, POLL_INTERVAL);
-  state.gamesTimer = setInterval(refreshGames, GAMES_INTERVAL);
+  // Games poll cadence depends on whether we're waiting for one to start.
+  // pregame / no-game → faster (8s) so Start Game shows up quickly.
+  // live → slower (30s) since the events poll handles the bulk of updates.
+  const waitingForStart = !state.game || !gameIsLive(state.game, state.events);
+  const interval = waitingForStart ? GAMES_INTERVAL_WAIT : GAMES_INTERVAL_LIVE;
+  state.gamesTimer = setInterval(refreshGames, interval);
+  state.gamesIntervalMs = interval;
 }
 function stopPolling() {
   if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
   if (state.gamesTimer) { clearInterval(state.gamesTimer); state.gamesTimer = null; }
 }
 
-// Pause polling when tab is hidden, resume on focus.
+// If the desired cadence changes (e.g., game just flipped to live), restart
+// polling so the games timer runs at the new interval.
+function ensurePollingCadence() {
+  if (!state.pollTimer) return;  // not currently polling — nothing to adjust
+  const waitingForStart = !state.game || !gameIsLive(state.game, state.events);
+  const desired = waitingForStart ? GAMES_INTERVAL_WAIT : GAMES_INTERVAL_LIVE;
+  if (desired !== state.gamesIntervalMs) startPolling();
+}
+
+// Pause polling when tab is hidden, resume on focus. Mobile browsers
+// sometimes throttle background timers more aggressively than the
+// visibilitychange API surfaces; the focus + pageshow handlers below
+// catch those cases too.
+function wakeUp() {
+  refreshGames();   // immediate catch-up
+  startPolling();
+}
 document.addEventListener('visibilitychange', function () {
   if (document.hidden) {
     stopPolling();
   } else {
-    refreshGames();   // immediate catch-up
-    startPolling();
+    wakeUp();
   }
 });
+window.addEventListener('focus', function () { if (!document.hidden) wakeUp(); });
+window.addEventListener('pageshow', function () { if (!document.hidden) wakeUp(); });
 
 // ============================================================================
 // BOOT
