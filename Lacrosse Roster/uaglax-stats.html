@@ -1012,13 +1012,36 @@ function stopRefresh() {
 async function refresh() {
   if (!state.game) return;
   try {
-    const res = await fetch(API_BASE + '/lacrosse/stats/events?gameId=' + state.game.recordId);
+    // cache-bust query param so any CDN layer can't serve stale events
+    const res = await fetch(API_BASE + '/lacrosse/stats/events?gameId=' + state.game.recordId + '&_=' + Date.now(), { cache: 'no-store' });
     if (!res.ok) { setSyncStatus(); return; }
     const data = await res.json();
     const serverEvents = (data.events || []).map(function (e) { e._synced = true; return e; });
-    // Merge in any queued (unsynced) local events still pending
+    // Merge strategy: server is authoritative for anything it knows about,
+    // but we keep three categories of local events that the server response
+    // doesn't yet reflect:
+    //   1. _pending  — POST still in flight
+    //   2. _failed   — POST returned an error; keep visible so the keeper
+    //                  can see something went wrong and retry
+    //   3. recently-synced (has recordId) but missing from this server
+    //      response — usually because the GET fired before Airtable's
+    //      index caught up with the just-completed POST. Without this we
+    //      get a brief "event vanishes then reappears" flicker.
+    const serverIds = new Set(serverEvents.map(function (e) { return e.recordId; }));
     const queued = readQueue();
-    state.events = serverEvents.concat(queued);
+    const queuedIds = new Set(queued.map(function (e) { return e._localId; }));
+    const localOnly = (state.events || []).filter(function (e) {
+      if (e._pending || e._failed) return true;
+      if (e.recordId && !serverIds.has(e.recordId)) return true;
+      return false;
+    }).filter(function (e) {
+      // Don't double-count anything that's already in the queue list we'll concat below
+      return !queuedIds.has(e._localId);
+    });
+    const merged = serverEvents.concat(localOnly, queued);
+    // Sort by createdAt for stable chronological display
+    merged.sort(function (a, b) { return (a.createdAt || '').localeCompare(b.createdAt || ''); });
+    state.events = merged;
     renderAll();
     flushQueue();
   } catch (err) {

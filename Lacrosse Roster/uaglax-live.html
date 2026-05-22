@@ -582,7 +582,9 @@ function cancelAdmin() {
 // ============================================================================
 async function fetchGames() {
   try {
-    const res = await fetch(API_BASE + '/lacrosse/stats/games', { cache: 'no-store' });
+    // ?_=timestamp bypasses any CDN-level caching that might serve a 30s-old
+    // games list (Cloudflare's edge ignores no-store on cross-origin GETs).
+    const res = await fetch(API_BASE + '/lacrosse/stats/games?_=' + Date.now(), { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     state.online = true;
@@ -599,7 +601,7 @@ async function fetchGames() {
 async function fetchEvents(gameId) {
   if (!gameId) return [];
   try {
-    const res = await fetch(API_BASE + '/lacrosse/stats/events?gameId=' + encodeURIComponent(gameId), { cache: 'no-store' });
+    const res = await fetch(API_BASE + '/lacrosse/stats/events?gameId=' + encodeURIComponent(gameId) + '&_=' + Date.now(), { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     state.online = true;
