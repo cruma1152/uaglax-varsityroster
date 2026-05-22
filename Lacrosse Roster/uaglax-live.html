@@ -673,10 +673,14 @@ async function fetchEvents(gameId) {
 
 // ============================================================================
 // LIVE GAME PICKER
-// Mirrors the logic of the LIVE banner on index.html: any non-final game with
-// a score wins. That way starting a game from the stats app (or unlocking the
-// schedule lock on the phone and entering 0-0) is the trigger — date doesn't
-// matter. Falls back to today's pregame / today's already-final game.
+// Priority order (parents loading the page before tip-off should see PREGAME):
+//   1. Today's non-final game (with or without a score) — gives a clean
+//      pregame state when parents arrive early, and flips to LIVE
+//      automatically the moment Start Game is tapped.
+//   2. Today's already-final game — still headline today's result.
+//   3. Any non-final game with a score, regardless of date — catches games
+//      that crossed midnight or had a date typo, but ranks BELOW today so a
+//      stale test game can't beat today's real game.
 // ============================================================================
 function pickLiveGame(games) {
   if (!games || !games.length) return null;
@@ -686,21 +690,25 @@ function pickLiveGame(games) {
     return typeof g.ourScore === 'number' || typeof g.opponentScore === 'number';
   };
 
-  // 1. Today's non-final game with a score — clearest "live now"
-  let live = games.find(function (g) { return norm(g) === today && !g.final && hasScore(g); });
+  // 1. Today's non-final game (covers both pregame and live states)
+  let live = games.find(function (g) { return norm(g) === today && !g.final; });
   if (live) return live;
-  // 2. ANY non-final game with a score — catches test games on other dates,
-  //    games that ran past midnight, or schedule date typos. This matches the
-  //    LIVE banner logic on the roster page.
-  live = games.find(function (g) { return !g.final && hasScore(g); });
-  if (live) return live;
-  // 3. Today's non-final game without a score — pregame headline
-  live = games.find(function (g) { return norm(g) === today && !g.final; });
-  if (live) return live;
-  // 4. Today's already-final game — still headline the result
+  // 2. Today's already-final game — show the result
   live = games.find(function (g) { return norm(g) === today && g.final; });
   if (live) return live;
+  // 3. Off-day fallback: any non-final game with a score (e.g., midnight overrun)
+  live = games.find(function (g) { return !g.final && hasScore(g); });
+  if (live) return live;
   return null;
+}
+
+// Is the picked game actually in progress, or just scheduled for today?
+// Live = has any score set OR at least one stat event exists.
+function gameIsLive(g, events) {
+  if (!g) return false;
+  if (typeof g.ourScore === 'number' || typeof g.opponentScore === 'number') return true;
+  if (events && events.length) return true;
+  return false;
 }
 
 function pickNextGame(games) {
@@ -736,11 +744,15 @@ function renderScoreboard() {
     return;
   }
 
+  const isLive = gameIsLive(g, state.events);
   if (g.final) {
     chipLabel.textContent = 'FINAL';
     chip.classList.add('is-final');
-  } else {
+  } else if (isLive) {
     chipLabel.textContent = 'LIVE';
+  } else {
+    chipLabel.textContent = 'PREGAME';
+    chip.classList.add('is-pregame');
   }
 
   // UA is always "home" visually, regardless of homeAway field.
@@ -749,8 +761,9 @@ function renderScoreboard() {
   $('awayName').textContent = (g.opponent || 'TBD').toUpperCase();
   $('awaySub').textContent = g.homeAway === 'Home' ? 'Visitors' : (g.homeAway === 'Away' ? 'Hosts' : '');
 
-  $('homeScore').textContent = (typeof g.ourScore === 'number') ? g.ourScore : '0';
-  $('awayScore').textContent = (typeof g.opponentScore === 'number') ? g.opponentScore : '0';
+  // Pregame: show em-dashes instead of 0-0 so it's clear nothing's happened.
+  $('homeScore').textContent = (typeof g.ourScore === 'number') ? g.ourScore : (isLive ? '0' : '—');
+  $('awayScore').textContent = (typeof g.opponentScore === 'number') ? g.opponentScore : (isLive ? '0' : '—');
 
   // Period chip — pull from latest Period Start event, else from highest period
   // seen in events, else '—'.
@@ -763,7 +776,16 @@ function renderScoreboard() {
       if (typeof e.period === 'number' && (curPeriod == null || e.period > curPeriod)) curPeriod = e.period;
     });
   }
-  $('sbPeriod').textContent = g.final ? 'FINAL' : (curPeriod ? qLabel(curPeriod) : 'PREGAME');
+  // Period text: FINAL > Qx (live) > tip-off time (pregame, if known) > PREGAME
+  if (g.final) {
+    $('sbPeriod').textContent = 'FINAL';
+  } else if (curPeriod) {
+    $('sbPeriod').textContent = qLabel(curPeriod);
+  } else if (!isLive && g.time) {
+    $('sbPeriod').textContent = String(g.time).toUpperCase();
+  } else {
+    $('sbPeriod').textContent = isLive ? 'Q1' : 'PREGAME';
+  }
 
   // Venue / location small text
   const venue = (g.homeAway === 'Home' ? 'HOME' : (g.homeAway === 'Away' ? 'AWAY' : '')) +
@@ -825,6 +847,29 @@ function renderFeed() {
             + (state._nextGame.time ? ' · ' + escapeHtml(state._nextGame.time) : '')
             + '</div>'
         : '');
+    root.appendChild(card);
+    return;
+  }
+
+  // Pregame: game's on the schedule for today but no score/events yet. Show
+  // a friendly placeholder so parents who arrive early know they're in the
+  // right place — page will auto-flip to LIVE once the keeper hits Start Game.
+  const isLive = gameIsLive(g, state.events);
+  if (!isLive && !g.final) {
+    root.innerHTML = '';
+    const card = document.createElement('div');
+    card.className = 'state-card';
+    const matchupLine = (g.homeAway === 'Away' ? 'at ' : 'vs ') + escapeHtml(g.opponent || 'TBD');
+    const detailParts = [];
+    if (g.time)     detailParts.push(escapeHtml(g.time));
+    if (g.location) detailParts.push(escapeHtml(g.location));
+    if (g.homeAway) detailParts.push(g.homeAway === 'Home' ? 'HOME' : 'AWAY');
+    card.innerHTML =
+      '<h2>Pregame</h2>' +
+      '<p style="font-size:15px;color:var(--black);font-weight:600;letter-spacing:0.3px;">' + matchupLine + '</p>' +
+      (detailParts.length ? '<p style="margin-top:6px;">' + detailParts.join(' · ') + '</p>' : '') +
+      '<div class="next-game">Live updates will appear here the moment the game starts. ' +
+      'Keep this tab open — no need to refresh.</div>';
     root.appendChild(card);
     return;
   }
