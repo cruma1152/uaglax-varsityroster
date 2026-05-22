@@ -322,17 +322,33 @@
   }
   .footer-link a { color: var(--gold-dark); text-decoration: none; font-weight: 700; }
   .footer-link a:hover { text-decoration: underline; }
+  /* Admin toggle pill. Subtle gray by default — parents see it but it doesn't
+     scream for attention. Tap to enter PIN. Goes gold when active. Tap again
+     to drop back to public. */
   .admin-badge {
     display: inline-block;
+    background: var(--gray-100);
+    color: var(--gray-400);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    margin-left: 8px;
+    border: 1px solid var(--gray-200);
+    cursor: pointer;
+    text-transform: uppercase;
+    user-select: none;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .admin-badge:hover { background: var(--gray-200); color: var(--gray-500); }
+  .admin-badge.active {
     background: var(--gold);
     color: var(--black);
-    padding: 2px 8px;
-    border-radius: 4px;
+    border-color: var(--gold);
     font-weight: 800;
-    font-size: 10px;
-    letter-spacing: 1px;
-    margin-left: 6px;
   }
+  .admin-badge.active:hover { filter: brightness(1.05); background: var(--gold); }
 
   /* Connection banner — only when worker is unreachable */
   .conn-banner {
@@ -449,7 +465,7 @@
 
 <div class="footer-link">
   <a href="index.html">← Full roster &amp; schedule</a>
-  <span id="adminBadge" class="admin-badge" hidden>ADMIN</span>
+  <button type="button" id="adminBadge" class="admin-badge" onclick="onAdminPillTap()">Admin</button>
 </div>
 
 <!-- PIN entry modal -->
@@ -457,10 +473,10 @@
   <div class="pin-card">
     <h3>Admin View</h3>
     <p>Enter the score-edit PIN to see every stat type (shots, ground balls, draw controls, etc).</p>
-    <input type="password" inputmode="numeric" id="pinInput" placeholder="••••" autocomplete="off">
+    <input type="password" inputmode="numeric" id="pinInput" placeholder="••••" autocomplete="off" onkeydown="if (event.key === 'Enter') confirmAdmin();">
     <div class="pin-error" id="pinError"></div>
     <div class="pin-actions">
-      <button class="pin-cancel" onclick="cancelAdmin()">Public View</button>
+      <button class="pin-cancel" onclick="cancelAdmin()">Cancel</button>
       <button class="pin-confirm" onclick="confirmAdmin()">Unlock</button>
     </div>
   </div>
@@ -533,48 +549,87 @@ function escapeHtml(s) {
 }
 
 // ============================================================================
-// ADMIN UNLOCK
+// ADMIN TOGGLE
+// The footer "Admin" pill is always visible. Tap when public → opens PIN
+// modal. Tap when admin → switches back to public (no PIN required to leave).
+// PIN is validated against the worker's /lacrosse/stats/verify endpoint so
+// wrong PINs get rejected instead of silently "succeeding".
 // ============================================================================
-function maybePromptAdmin() {
-  const params = new URLSearchParams(location.search);
-  if (params.get('admin') !== '1') return;
-  // Already have a PIN saved? Try it silently. If it's wrong the events endpoint
-  // is public so we'd never know — admin just affects rendering. So we just
-  // trust the PIN exists and treat as admin. (The PIN itself isn't used to
-  // fetch anything on the live page — it's only here so we don't expose admin
-  // view by URL alone.)
+function reflectAdminPill() {
+  const pill = $('adminBadge');
+  if (!pill) return;
+  pill.classList.toggle('active', !!state.adminMode);
+  pill.textContent = state.adminMode ? 'ADMIN' : 'Admin';
+}
+
+function maybeAutoAdmin() {
+  // If a PIN is already saved in this browser AND ?admin=1 was used at some
+  // point, treat as still-admin. Validate it asynchronously in the background
+  // — if it's been rotated since, silently revert to public.
   const saved = localStorage.getItem(PIN_KEY) || '';
-  if (saved) {
-    state.pin = saved;
-    state.adminMode = true;
-    $('adminBadge').hidden = false;
+  if (!saved) return;
+  // Quietly re-verify in the background; flip off if stale.
+  verifyPinWithServer(saved).then(function (ok) {
+    if (ok) {
+      state.pin = saved;
+      state.adminMode = true;
+      reflectAdminPill();
+      renderFeed();
+    } else {
+      localStorage.removeItem(PIN_KEY);
+    }
+  }).catch(function () { /* offline — leave saved state untouched */ });
+}
+
+function onAdminPillTap() {
+  if (state.adminMode) {
+    // Toggle off — no PIN required to leave admin
+    state.adminMode = false;
+    state.pin = '';
+    localStorage.removeItem(PIN_KEY);
+    reflectAdminPill();
+    renderFeed();
     return;
   }
+  // Open PIN modal
+  $('pinInput').value = '';
+  $('pinError').textContent = '';
   $('pinModal').hidden = false;
   setTimeout(function () { $('pinInput').focus(); }, 50);
 }
-function confirmAdmin() {
+
+async function verifyPinWithServer(pin) {
+  try {
+    const res = await fetch(API_BASE + '/lacrosse/stats/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-UAGLAX-PIN': pin },
+      body: '{}'
+    });
+    return res.status === 200;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function confirmAdmin() {
   const v = ($('pinInput').value || '').trim();
   if (!v) { $('pinError').textContent = 'Enter the PIN.'; return; }
-  // Validate the PIN by hitting the events endpoint with an empty POST (will 401 on bad PIN).
-  // We do a HEAD-like check: simplest is to call a known PIN-gated endpoint.
-  // Since the live page doesn't *need* PIN, we just trust the value and let
-  // the admin badge show. If parents type wrong PIN, the worst case is they
-  // see admin-styled views without actually being admins. That's harmless
-  // because all data on this page is already publicly readable.
+  $('pinError').textContent = 'Checking…';
+  const ok = await verifyPinWithServer(v);
+  if (!ok) {
+    $('pinError').textContent = 'PIN not accepted. Try again.';
+    return;
+  }
   state.pin = v;
   state.adminMode = true;
   localStorage.setItem(PIN_KEY, v);
-  $('adminBadge').hidden = false;
   $('pinModal').hidden = true;
+  reflectAdminPill();
   renderFeed();
 }
+
 function cancelAdmin() {
   $('pinModal').hidden = true;
-  // Drop ?admin=1 from the URL so reload doesn't reprompt
-  const url = new URL(location.href);
-  url.searchParams.delete('admin');
-  history.replaceState(null, '', url.toString());
 }
 
 // ============================================================================
@@ -929,7 +984,8 @@ document.addEventListener('visibilitychange', function () {
 // BOOT
 // ============================================================================
 (async function init() {
-  maybePromptAdmin();
+  reflectAdminPill();        // start in public mode; pill shows "Admin" (subtle)
+  maybeAutoAdmin();          // re-validate any saved PIN in the background
   await refreshGames();
   startPolling();
   // Refresh the "updated ago" text every 5s so it doesn't go stale.
