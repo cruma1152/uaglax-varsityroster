@@ -159,14 +159,56 @@
   .feed-row .ft-clock { color:#7d8590; font-size:12px; font-family:'Menlo','SF Mono',monospace; min-width:44px; }
   .feed-row .ft-stat { font-weight:600; min-width:60px; font-size:13px; }
   .feed-row .ft-player { flex:1; }
-  .feed-row .ft-delete {
+  .feed-row .ft-delete, .feed-row .ft-edit {
     background:transparent; color:#484f58; padding:6px 10px; border-radius:6px;
     font-size:14px; line-height:1; opacity:.4; cursor:pointer;
     transition: background .12s ease, color .12s ease, opacity .12s ease;
+    border: 0;
   }
   .feed-row .ft-delete:hover, .feed-row .ft-delete:active {
     background:#f8514925; color:#f85149; opacity:1;
   }
+  .feed-row .ft-edit:hover, .feed-row .ft-edit:active {
+    background:#388bfd25; color:#388bfd; opacity:1;
+  }
+  /* Edit modal — matches the dark theme of the rest of the app. */
+  #edit-modal {
+    position:fixed; inset:0; background:rgba(0,0,0,.7);
+    display:none; align-items:center; justify-content:center;
+    padding:20px; z-index:250;
+  }
+  #edit-modal.show { display:flex; }
+  #edit-card {
+    background:#161b22; border:1px solid #30363d; border-radius:14px;
+    width:100%; max-width:380px; padding:22px;
+    color:#e6edf3;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+  }
+  #edit-card h3 { font-size:18px; margin-bottom:6px; color:#e6edf3; }
+  #edit-card .sub { color:#7d8590; font-size:13px; margin-bottom:18px; }
+  #edit-card label {
+    display:block; font-size:11px; text-transform:uppercase; letter-spacing:1.5px;
+    color:#7d8590; margin-bottom:6px; margin-top:14px; font-weight:600;
+  }
+  #edit-card select {
+    width:100%; padding:12px; font-size:15px; border-radius:8px;
+    background:#0d1117; color:#e6edf3; border:1px solid #30363d;
+    appearance:none; -webkit-appearance:none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%237d8590' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 14px center;
+    padding-right:36px;
+  }
+  #edit-card select:focus { outline:none; border-color:#388bfd; }
+  #edit-card select:disabled { opacity:.4; cursor:not-allowed; }
+  #edit-err { color:#f85149; font-size:13px; margin-top:10px; min-height:16px; }
+  #edit-actions { display:flex; gap:10px; margin-top:18px; }
+  #edit-actions button {
+    flex:1; padding:12px; border:0; border-radius:8px;
+    font-size:14px; font-weight:700; cursor:pointer;
+  }
+  #edit-actions .cancel { background:#21262d; color:#7d8590; }
+  #edit-actions .save { background:#388bfd; color:#fff; }
+  #edit-actions .save:disabled { opacity:.5; cursor:wait; }
   .feed-row.queued { background:#d2992210; }
   .feed-row.failed { background:#f8514920; }
   .feed-empty { padding:30px; text-align:center; color:#484f58; }
@@ -692,6 +734,27 @@
       <button class="close-btn" onclick="closeSettings()">Done</button>
       <button class="end-btn" onclick="endGame()">End Game</button>
       <button class="logout-btn" onclick="switchGame()">Switch game</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Edit event modal ───
+     Lets the keeper change the stat type and/or player on an already-logged
+     event. Worker reconciles Our Score / Opp Score automatically if a Goal
+     or Opp Goal is added/removed by the edit. Period Start events can't be
+     edited (they're auto-generated dividers). -->
+<div id="edit-modal" role="dialog" aria-modal="true">
+  <div id="edit-card">
+    <h3>Edit event</h3>
+    <div class="sub" id="edit-context">—</div>
+    <label for="edit-type">Stat type</label>
+    <select id="edit-type" onchange="onEditTypeChange()"></select>
+    <label for="edit-player">Player</label>
+    <select id="edit-player"></select>
+    <div id="edit-err" aria-live="polite"></div>
+    <div id="edit-actions">
+      <button type="button" class="cancel" onclick="closeEdit()">Cancel</button>
+      <button type="button" class="save" id="edit-save-btn" onclick="saveEdit()">Save changes</button>
     </div>
   </div>
 </div>
@@ -1289,6 +1352,134 @@ function setSyncStatus() {
 }
 
 // ============================================================================
+//   Edit event (pencil flow)
+//   Reuses the existing PIN. Calls PATCH /lacrosse/stats/events/{recId} on
+//   the worker, which reconciles Our Score / Opp Score automatically if a
+//   Goal or Opp Goal is added/removed by the change. Live feed picks up the
+//   updated event on its next poll — no extra wiring needed.
+// ============================================================================
+
+// Stat types the keeper can pick from the edit modal. Mirrors the worker's
+// allowlist minus 'Period Start' (which can't be edited).
+const EDIT_STAT_TYPES = ['Goal','Assist','Shot','SOG','Ground Ball','Missed GB','Draw Control','Draw Lost','Caused Turnover','Turnover','Save','Opp Goal'];
+const EDIT_TEAM_ONLY  = new Set(['Opp Goal','Missed GB','Draw Lost']);
+
+function openEdit(recordId) {
+  if (state.locked) { toast('Unlock to edit'); return; }
+  const evt = state.events.find(function (e) { return e.recordId === recordId; });
+  if (!evt) { toast('Event not found'); return; }
+  if (evt.statType === 'Period Start') { toast('Period Start events can\'t be edited'); return; }
+  state.pendingEdit = recordId;
+
+  // Stat type dropdown
+  const typeSel = $('edit-type');
+  typeSel.innerHTML = EDIT_STAT_TYPES.map(function (t) {
+    return '<option value="' + t + '"' + (t === evt.statType ? ' selected' : '') + '>' + t + '</option>';
+  }).join('');
+
+  // Player dropdown — populated from active roster
+  buildEditPlayerOptions(evt.playerId);
+
+  // Context line shown in the modal so the keeper knows which event they're editing
+  $('edit-context').textContent = qLabel(evt.period || 1) + ' · originally: ' + describeEvent(evt);
+  $('edit-err').textContent = '';
+  $('edit-save-btn').disabled = false;
+  // Reflect team-only state if needed
+  onEditTypeChange();
+  $('edit-modal').classList.add('show');
+}
+
+function buildEditPlayerOptions(selectedId) {
+  const playerSel = $('edit-player');
+  const roster = sortPlayers(state.roster || [], 'jersey');
+  const opts = ['<option value="">— No player —</option>']
+    .concat(roster.map(function (p) {
+      const lbl = (p.jersey != null ? '#' + p.jersey + ' ' : '') + (p.name || '');
+      return '<option value="' + p.recordId + '"' + (p.recordId === selectedId ? ' selected' : '') + '>' + lbl + '</option>';
+    }));
+  playerSel.innerHTML = opts.join('');
+}
+
+function onEditTypeChange() {
+  const type = $('edit-type').value;
+  const playerSel = $('edit-player');
+  if (EDIT_TEAM_ONLY.has(type)) {
+    // Team-only stats — disable and clear player
+    playerSel.value = '';
+    playerSel.disabled = true;
+  } else {
+    playerSel.disabled = false;
+  }
+}
+
+function closeEdit() {
+  state.pendingEdit = null;
+  $('edit-modal').classList.remove('show');
+}
+
+async function saveEdit() {
+  const recordId = state.pendingEdit;
+  if (!recordId) return;
+  const evt = state.events.find(function (e) { return e.recordId === recordId; });
+  if (!evt) { closeEdit(); return; }
+
+  const newType = $('edit-type').value;
+  const newPlayerId = $('edit-player').value || null;
+
+  if (!EDIT_STAT_TYPES.includes(newType)) {
+    $('edit-err').textContent = 'Pick a valid stat type.'; return;
+  }
+  if (!EDIT_TEAM_ONLY.has(newType) && !newPlayerId) {
+    $('edit-err').textContent = 'Pick a player for ' + newType + '.'; return;
+  }
+
+  // Build PATCH body — only fields that changed
+  const body = {};
+  if (newType !== evt.statType) body.statType = newType;
+  // For team-only types, force player to null; otherwise send only if changed
+  if (EDIT_TEAM_ONLY.has(newType)) {
+    if (evt.playerId) body.playerId = null;
+  } else if (newPlayerId !== evt.playerId) {
+    body.playerId = newPlayerId;
+  }
+  if (Object.keys(body).length === 0) { toast('Nothing changed'); closeEdit(); return; }
+
+  $('edit-save-btn').disabled = true;
+  $('edit-err').textContent = 'Saving…';
+
+  try {
+    const res = await fetch(API_BASE + '/lacrosse/stats/events/' + recordId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-UAGLAX-PIN': state.pin },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      const msg = res.status === 401 ? 'PIN rejected — re-lock and unlock' : 'Edit failed (' + res.status + ')';
+      $('edit-err').textContent = msg;
+      $('edit-save-btn').disabled = false;
+      return;
+    }
+    const data = await res.json();
+    // Apply the change to local state so the row updates immediately.
+    evt.statType = data.statType;
+    if (EDIT_TEAM_ONLY.has(data.statType)) {
+      evt.playerId = null; evt.playerName = ''; evt.jersey = null;
+    } else if (data.playerId) {
+      evt.playerId = data.playerId;
+      const p = (state.roster || []).find(function (x) { return x.recordId === data.playerId; });
+      if (p) { evt.playerName = p.name; evt.jersey = p.jersey; evt.position = p.position; }
+    }
+    if (data.event) evt.event = data.event;
+    closeEdit();
+    renderAll();
+    toast('Updated');
+  } catch (err) {
+    $('edit-err').textContent = 'Network error: ' + err.message;
+    $('edit-save-btn').disabled = false;
+  }
+}
+
+// ============================================================================
 //   Player picker (Entry mode)
 // ============================================================================
 function sortPlayers(players, key) {
@@ -1348,8 +1539,22 @@ function confirmQuarterChange() {
   toast('Now tracking ' + qLabel(state.period));
   // Drop a synthetic "Period Start" event so the live feed page can render
   // a "Start of Q2" divider. Skipped when not actively in a game.
+  //
+  // First-time-only: if this period has already had a Period Start event
+  // logged (locally or on the server), don't fire another one. Handles the
+  // accidental-rollback case: keeper goes Q1 → Q2 by mistake → back to Q1.
+  // Both transitions are no-ops on the second pass, so the live feed
+  // doesn't end up with duplicate or out-of-order period dividers.
+  // Trade-off: if a period is entered accidentally and later started for
+  // real, no divider fires the second time. Confirmation modal serves as
+  // the keeper's mental cue that the period is changing.
   if (state.game && !state.locked) {
-    logEvent({ statType: 'Period Start', playerId: null });
+    const alreadyStarted = (state.events || []).some(function (e) {
+      return e.statType === 'Period Start' && e.period === state.period;
+    });
+    if (!alreadyStarted) {
+      logEvent({ statType: 'Period Start', playerId: null });
+    }
   }
 }
 function cancelQuarterChange() { state.pendingQuarter = null; $('qconfirm').classList.remove('show'); }
@@ -1513,10 +1718,16 @@ function renderFeed() {
       player = p ? '#' + p.jersey + ' ' + p.name.split(' ').pop() : '(unknown)';
     } else player = '(none)';
     const identifier = e._synced && e.recordId ? 'rec:' + e.recordId : 'loc:' + (e._localId || '');
+    // Edit button: only for synced, non-Period-Start events when unlocked.
+    // Period Start events are auto-generated quarter dividers and shouldn't
+    // be hand-edited. Unsynced events have no recordId yet, so the worker
+    // can't address them — keeper can use Undo to remove them.
+    const showEdit = !state.locked && e._synced && e.recordId && e.statType !== 'Period Start';
     return '<div class="' + cls + '">' +
       '<span class="ft-clock">' + clock + '</span>' +
       '<span class="ft-stat">' + e.statType + '</span>' +
       '<span class="ft-player">' + player + '</span>' +
+      (showEdit ? '<button class="ft-edit" title="Edit" onclick="openEdit(\'' + e.recordId + '\')">✎</button>' : '') +
       (state.locked ? '' : '<button class="ft-delete" title="Delete" onclick="requestDeleteEvent(\'' + identifier + '\')">🗑</button>') +
       '</div>';
   }).join('');
