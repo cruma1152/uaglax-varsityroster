@@ -515,6 +515,19 @@
   #adminmodal .confirm { background:#f85149; color:#ffffff; }
   #adminmodal .err { color:#f85149; font-size:13px; min-height:18px; margin-top:8px; }
 
+  /* ─── Opp Goal jersey prompt ─── */
+  #oppmodal { position:fixed; inset:0; background:rgba(0,0,0,.8); display:none; align-items:center; justify-content:center; z-index:128; }
+  #oppmodal.show { display:flex; }
+  #oppmodal .pin-card { background:#161b22; border:1px solid #30363d; border-radius:14px; padding:28px 32px; max-width:380px; width:90%; text-align:center; }
+  #oppmodal h3 { font-size:20px; margin-bottom:8px; color:#F7C414; }
+  #oppmodal p { font-size:13px; color:#8b949e; margin-bottom:18px; }
+  #oppmodal input { width:100%; padding:14px 16px; font-size:22px; border-radius:8px; border:1px solid #30363d; background:#0d1117; color:#e6edf3; text-align:center; letter-spacing:4px; font-weight:700; }
+  #oppmodal input:focus { outline:none; border-color:#F7C414; }
+  #oppmodal .pin-actions { display:flex; gap:10px; margin-top:14px; }
+  #oppmodal .pin-actions button { flex:1; padding:12px; border-radius:8px; font-size:14px; font-weight:600; }
+  #oppmodal .cancel { background:#21262d; color:#c9d1d9; border:1px solid #30363d; }
+  #oppmodal .confirm { background:#F7C414; color:#0d1117; }
+
   /* ─── Final-game lock banner ─── */
   #final-lock-bar { display:none; align-items:center; gap:12px; padding:10px 16px; background:rgba(248,81,73,.12); border-bottom:1px solid rgba(248,81,73,.4); color:#f0b8b6; }
   #final-lock-bar.show { display:flex; }
@@ -892,8 +905,12 @@
     <p style="color:#7d8590;font-size:13px;margin-bottom:12px;">Quarter is set from the top bar. Stats are tagged with the active quarter only.</p>
     <div id="settings-actions">
       <button class="close-btn" onclick="closeSettings()">Done</button>
-      <button class="end-btn" onclick="endGame()">End Game</button>
+      <button class="end-btn" onclick="markGameFinal()">Mark Final</button>
       <button class="logout-btn" onclick="switchGame()">Switch game</button>
+    </div>
+    <div id="settings-hint" style="margin-top:14px;color:#7d8590;font-size:12px;line-height:1.4;">
+      Tapping <strong>Mark Final</strong> locks this game. Stats become read-only;
+      edits require the admin PIN. You can keep viewing Summary and Report.
     </div>
   </div>
 </div>
@@ -953,6 +970,22 @@
     <div class="pin-actions">
       <button class="cancel" onclick="closePinModal()">Cancel</button>
       <button class="confirm" id="pin-submit" onclick="submitPin()">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<!-- Opp Goal jersey prompt: optional, lets the keeper note which opposing
+     player scored. The value is stored in the event's Note field (e.g. "#23")
+     and rendered as "OPP #23" in the feed row. Leave blank to log a generic
+     OPP Goal as before. -->
+<div id="oppmodal">
+  <div class="pin-card">
+    <h3>Opp Goal</h3>
+    <p>Opposing player's jersey? (Optional)</p>
+    <input id="opp-jersey-input" type="tel" maxlength="3" placeholder="##" autocomplete="off" inputmode="numeric">
+    <div class="pin-actions">
+      <button class="cancel" onclick="cancelOppGoal()">Cancel</button>
+      <button class="confirm" onclick="submitOppGoal()">Log Goal</button>
     </div>
   </div>
 </div>
@@ -1213,10 +1246,12 @@ function handleWriteLocked(res) {
   }
   return false;
 }
-// Enter handler for admin modal
+// Enter handlers for admin override and opp jersey modals
 document.addEventListener('DOMContentLoaded', function () {
-  const inp = document.getElementById('admin-input');
-  if (inp) inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') submitAdminOverride(); });
+  const adm = document.getElementById('admin-input');
+  if (adm) adm.addEventListener('keydown', function (e) { if (e.key === 'Enter') submitAdminOverride(); });
+  const opp = document.getElementById('opp-jersey-input');
+  if (opp) opp.addEventListener('keydown', function (e) { if (e.key === 'Enter') submitOppGoal(); });
 });
 
 // ============================================================================
@@ -1280,10 +1315,40 @@ function switchGame() {
   showGamePicker();
 }
 
-function endGame() {
-  if (!confirm('End the game and return to the picker? You can mark the Schedule row as Final separately in Airtable.')) return;
-  switchGame();
+// Mark the currently-selected game as Final on the Schedule row. Locks
+// further stat writes (only admin PIN can edit from here on). Leaves the
+// user on the game so they can keep viewing Summary and Report.
+async function markGameFinal() {
+  if (!state.game) return;
+  if (state.game.final) { toast('Already final'); return; }
+  if (state.locked || !getActivePin()) { toast('Unlock first'); return; }
+  if (!confirm('Mark this game as Final?\n\nNo further stat edits will be allowed without the admin PIN.')) return;
+  try {
+    const res = await fetch(API_BASE + '/lacrosse/schedule/' + state.game.recordId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-UAGLAX-PIN': getActivePin() },
+      body: JSON.stringify({ final: true })
+    });
+    if (!res.ok) {
+      if (res.status === 401) toast('PIN rejected');
+      else toast('Mark Final failed (' + res.status + ')');
+      return;
+    }
+    state.game.final = true;
+    state.finalLock = true;
+    $('settings').classList.remove('show');
+    applyFinalLockUI();
+    // Drop the entry tab back to summary so the coach lands somewhere useful.
+    switchTab('summary');
+    toast('Game marked Final — stats locked');
+  } catch (err) {
+    toast('Network error: ' + err.message);
+  }
 }
+
+// Legacy alias — older code paths called endGame() to just bounce to the
+// picker. New name is switchGame(); preserved here for any stale handlers.
+function endGame() { switchGame(); }
 
 // ============================================================================
 //   Tab switching
@@ -1448,7 +1513,33 @@ function selectStat(statType) {
 function logOppGoal() {
   if (state.locked) { toast('Unlock to enter stats'); return; }
   if (!state.game) return;
-  logEvent({ statType: 'Opp Goal', playerId: null });
+  if (state.finalLock && !state.adminPin) { toast('Game is final — admin override required'); openAdminOverride(); return; }
+  openOppModal();
+}
+
+// Opp Goal jersey prompt — lets the keeper optionally tag the opposing
+// player's number. Stored in the event's Note field, rendered "OPP #23"
+// in the feed row. Blank = generic Opp Goal as before.
+function openOppModal() {
+  const m = document.getElementById('oppmodal');
+  const inp = document.getElementById('opp-jersey-input');
+  if (inp) inp.value = '';
+  if (m) m.classList.add('show');
+  setTimeout(function () { if (inp) inp.focus(); }, 50);
+}
+function cancelOppGoal() {
+  const m = document.getElementById('oppmodal');
+  if (m) m.classList.remove('show');
+}
+function submitOppGoal() {
+  const inp = document.getElementById('opp-jersey-input');
+  let jersey = (inp && inp.value || '').trim();
+  jersey = jersey.replace(/^#+/, '').trim();   // tolerate "23" or "#23"
+  // Strip anything that isn't a digit so the note stores cleanly.
+  jersey = jersey.replace(/\D+/g, '');
+  const note = jersey ? '#' + jersey : '';
+  cancelOppGoal();
+  logEvent({ statType: 'Opp Goal', playerId: null, note: note });
 }
 
 function logTeamStat(statType) {
@@ -1464,6 +1555,7 @@ async function logEvent(payload) {
     _pending: true,
     statType: payload.statType,
     playerId: payload.playerId,
+    note: payload.note || '',           // free-text annotation (e.g. opp jersey "#23")
     period: state.period,
     clock: '',
     createdAt: new Date().toISOString()
@@ -1496,7 +1588,8 @@ async function flushQueue() {
           playerId: evt.playerId || undefined,
           statType: evt.statType,
           period: evt.period,
-          clock: ''
+          clock: '',
+          note: evt.note || ''
         })
       });
       if (res.ok) {
@@ -2042,7 +2135,7 @@ function renderFeed() {
     else if (!e._synced) cls += ' queued';
     const clock = qLabel(e.period || 1);
     let player;
-    if (e.statType === 'Opp Goal') player = 'OPP';
+    if (e.statType === 'Opp Goal') player = e.note ? 'OPP ' + e.note : 'OPP';
     else if (e.statType === 'Missed GB' || e.statType === 'Draw Lost') player = '—';
     else if (e.playerName) player = (e.jersey ? '#' + e.jersey + ' ' : '') + (e.playerName.split(' ').pop() || '');
     else if (e.playerId) {
