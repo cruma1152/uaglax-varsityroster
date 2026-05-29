@@ -6,6 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>UAGLAX Stat-Keeper</title>
+<!-- jsPDF for client-side Coach Report PDF generation. Loaded async so it
+     doesn't block initial paint; the report button awaits readiness. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 <style>
   /* ─── Reset & base ─── */
   *,*:before,*:after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -390,6 +393,12 @@
   #report-panel { flex-direction:column; overflow-y:auto; padding: 16px 0 32px; }
 
   .report-section { margin: 0 24px 22px; background:#161b22; border:1px solid #30363d; border-radius:12px; padding:18px 0; overflow:hidden; }
+  /* Coach Report download bar — sits at the top of the Report tab */
+  .coach-report-bar { display:flex; align-items:center; gap:14px; padding:14px 20px; flex-wrap:wrap; }
+  #coach-report-btn { background:#F7C414; color:#0d1117; border-radius:8px; padding:10px 18px; font-weight:700; font-size:14px; cursor:pointer; display:inline-flex; align-items:center; }
+  #coach-report-btn:active { transform: scale(.98); }
+  #coach-report-btn:disabled { opacity:.6; cursor:wait; }
+  .coach-report-hint { color:#8b949e; font-size:12px; flex:1; min-width:200px; }
   .report-section h2 { font-size:13px; color:#7d8590; text-transform:uppercase; letter-spacing:1.4px; padding: 0 24px 12px; }
   .report-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
   table.report-table { width:100%; border-collapse:collapse; font-size:13px; min-width:780px; }
@@ -872,6 +881,12 @@
 
   <!-- Report panel -->
   <div id="report-panel" class="panel">
+    <div class="report-section coach-report-bar">
+      <button id="coach-report-btn" type="button" onclick="downloadCoachReport()">
+        <span aria-hidden="true">📄</span>&nbsp;Download Coach Report (PDF)
+      </button>
+      <span class="coach-report-hint">One-page landscape PDF — box score, top performers, quarter scoring.</span>
+    </div>
     <div class="report-section">
       <h2>Player Stats — <span id="report-scope">Full Game</span></h2>
       <div class="report-table-wrap">
@@ -1378,8 +1393,46 @@ async function markGameFinal() {
     // Drop the entry tab back to summary so the coach lands somewhere useful.
     switchTab('summary');
     toast('Game marked Final — stats locked');
+    // Fire-and-forget the Coach Report email. Don't block the user on this —
+    // if it fails (network, library not loaded), the Download button on the
+    // Report tab is still available.
+    emailCoachReport().catch(function (e) { console.warn('Coach report email failed:', e); });
   } catch (err) {
     toast('Network error: ' + err.message);
+  }
+}
+
+// Generate the Coach Report PDF and POST it to the worker for emailing.
+// Called automatically after a successful Mark Final. The user sees a brief
+// toast on success or failure but is never blocked.
+async function emailCoachReport() {
+  if (!state.game) return;
+  const r = buildCoachReportPDF();
+  if (!r) return;
+  // jsPDF's output('datauristring') returns "data:application/pdf;base64,XXX"
+  // Strip the prefix so Resend gets the raw base64 it expects.
+  const dataUri = r.pdf.output('datauristring');
+  const base64  = dataUri.split(',')[1] || '';
+  if (!base64) return;
+  try {
+    const res = await fetch(API_BASE + '/lacrosse/stats/email-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-UAGLAX-PIN': getActivePin() },
+      body: JSON.stringify({
+        gameId: state.game.recordId,
+        pdfBase64: base64,
+        filename: r.filename
+      })
+    });
+    if (res.ok) {
+      toast('Coach Report emailed to Charles');
+    } else if (res.status === 401) {
+      toast('Email skipped: PIN rejected');
+    } else {
+      toast('Email failed (' + res.status + ') — use the Download button');
+    }
+  } catch (e) {
+    toast('Email send error — use the Download button');
   }
 }
 
@@ -2532,6 +2585,322 @@ function renderTimeline() {
       if (tip) toast(tip, 3000);
     });
   });
+}
+
+// ============================================================================
+//   Coach Report PDF  (landscape, US Letter, single page)
+// ----------------------------------------------------------------------------
+//   Builds a one-page post-game report from the same aggregate() data the
+//   on-screen Report tab uses. Output is a real text-based PDF (not an image)
+//   so it's searchable, prints cleanly, and emails as a small attachment.
+//   Returns a base64 data URI of the PDF for upload to the email endpoint.
+// ============================================================================
+function buildCoachReportPDF() {
+  if (!state.game) return null;
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    toast('PDF library not loaded yet — try again in a moment');
+    return null;
+  }
+  const jsPDFCtor = window.jspdf.jsPDF;
+  const pdf = new jsPDFCtor({ orientation: 'landscape', unit: 'mm', format: 'letter', compress: true });
+  const PW = 279, PH = 216, M = 12, CW = PW - 2 * M;
+
+  function hex(h) { return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)]; }
+  function setC(c) { const [r,g,b] = hex(c); pdf.setTextColor(r,g,b); }
+  function setF(c) { const [r,g,b] = hex(c); pdf.setFillColor(r,g,b); }
+  function setD(c, w) { const [r,g,b] = hex(c); pdf.setDrawColor(r,g,b); if (w) pdf.setLineWidth(w); }
+  function txt(t, x, y, o) { pdf.text(String(t == null ? '' : t), x, y, o || {}); }
+  function hline(x1, y, x2, c, w) { setD(c, w || 0.2); pdf.line(x1, y, x2, y); }
+
+  // ---- Pull data ----
+  const g = state.game;
+  const ourScore  = (typeof g.ourScore === 'number')      ? g.ourScore      : null;
+  const oppScore  = (typeof g.opponentScore === 'number') ? g.opponentScore : null;
+  const result    = (ourScore != null && oppScore != null)
+                    ? (ourScore > oppScore ? 'W' : ourScore < oppScore ? 'L' : 'T')
+                    : '—';
+  const venue     = g.homeAway === 'Away' ? '@ ' : (g.homeAway === 'Home' ? 'vs ' : 'vs ');
+  const dateStr   = g.date || '';
+  const oppName   = g.opponent || 'OPP';
+  const locName   = g.location || '';
+
+  // Aggregate all events (no quarter filter for the report)
+  const { totals: tot, byPlayer } = aggregate(state.events);
+
+  // Build player rows including 0-stat roster members so the report mirrors
+  // the on-screen Report tab.
+  const rows = [];
+  (state.roster || []).forEach(function (p) {
+    const e = byPlayer.get(p.recordId) || { goal:0, assist:0, shot:0, sog:0, gb:0, dc:0, ct:0, to:0, save:0 };
+    const totalShots = (e.shot || 0) + (e.sog || 0) + (e.goal || 0);
+    const onGoal     = (e.sog || 0) + (e.goal || 0);
+    const shotPct    = totalShots ? Math.round(100 * onGoal / totalShots) : null;
+    rows.push({
+      jersey: p.jersey, name: p.name, position: p.position || '',
+      g: e.goal, a: e.assist, pts: e.goal + e.assist,
+      s: totalShots, sog: onGoal, shPct: shotPct,
+      gb: e.gb, dc: e.dc, ct: e.ct, to: e.to, save: e.save
+    });
+  });
+  // Sort goalies last, otherwise by jersey number ascending
+  rows.sort(function (a, b) {
+    const ag = (a.position || '').toLowerCase() === 'goalie' ? 1 : 0;
+    const bg = (b.position || '').toLowerCase() === 'goalie' ? 1 : 0;
+    if (ag !== bg) return ag - bg;
+    return (a.jersey != null ? a.jersey : 999) - (b.jersey != null ? b.jersey : 999);
+  });
+
+  // Top performers
+  function topByMetric(metric) {
+    let best = null;
+    rows.forEach(function (r) {
+      if ((r[metric] || 0) <= 0) return;
+      if (!best || r[metric] > best[metric]) best = r;
+    });
+    return best;
+  }
+  const topScorer  = topByMetric('g');
+  const topAssist  = topByMetric('a');
+  const topGoalie  = rows.filter(function (r) { return (r.position || '').toLowerCase() === 'goalie' && (r.save || 0) > 0; })
+                         .sort(function (a, b) { return b.save - a.save; })[0] || null;
+
+  // Quarter scoring breakdown — count Goal / Opp Goal per period
+  const qScore = { 1: { ua: 0, opp: 0 }, 2: { ua: 0, opp: 0 }, 3: { ua: 0, opp: 0 }, 4: { ua: 0, opp: 0 } };
+  (state.events || []).forEach(function (e) {
+    const q = e.period || 1;
+    if (!qScore[q]) qScore[q] = { ua: 0, opp: 0 };
+    if (e.statType === 'Goal') qScore[q].ua++;
+    else if (e.statType === 'Opp Goal') qScore[q].opp++;
+  });
+
+  // ─────────────────────────────────────────────────────────
+  // 1.  MASTHEAD
+  // ─────────────────────────────────────────────────────────
+  let cy = M;
+  pdf.setFontSize(16); pdf.setFont('helvetica', 'bold'); setC('#1a1a1a');
+  txt('UA GIRLS LACROSSE', M, cy + 6);
+  pdf.setFontSize(11); pdf.setFont('helvetica', 'normal'); setC('#404040');
+  txt("Coach's Game Report", M, cy + 11);
+  // Right-side date generated
+  pdf.setFontSize(9); setC('#737373');
+  const gen = 'Generated ' + (new Date()).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+  txt(gen, PW - M, cy + 6, { align: 'right' });
+  cy += 14;
+  hline(M, cy, M + CW, '#F7C414', 0.6);
+  cy += 6;
+
+  // ─────────────────────────────────────────────────────────
+  // 2.  GAME LINE
+  // ─────────────────────────────────────────────────────────
+  pdf.setFontSize(18); pdf.setFont('helvetica', 'bold'); setC('#1a1a1a');
+  txt(venue + oppName, M, cy + 6);
+  pdf.setFontSize(10); pdf.setFont('helvetica', 'normal'); setC('#737373');
+  const sub = [dateStr, locName].filter(Boolean).join(' · ');
+  if (sub) txt(sub, M, cy + 11);
+
+  // Right-side scoreboard block
+  const scoreText = (ourScore != null && oppScore != null)
+    ? ('UA ' + ourScore + ' — ' + oppScore + ' ' + oppName.toUpperCase().slice(0, 14))
+    : ((ourScore != null ? 'UA ' + ourScore : '') + ' — ' + (oppScore != null ? oppScore + ' ' + oppName : ''));
+  pdf.setFontSize(20); pdf.setFont('helvetica', 'bold'); setC('#1a1a1a');
+  txt(scoreText, PW - M, cy + 6, { align: 'right' });
+
+  // Result badge
+  if (result !== '—') {
+    const badgeColor = result === 'W' ? '#22863a' : (result === 'L' ? '#cb2431' : '#6a737d');
+    pdf.setFontSize(11); pdf.setFont('helvetica', 'bold'); setC('#ffffff');
+    const bw = 14, bh = 6;
+    const bx = PW - M - bw, by = cy + 9;
+    setF(badgeColor); pdf.roundedRect(bx, by, bw, bh, 1.5, 1.5, 'F');
+    txt(result, bx + bw / 2, by + 4.4, { align: 'center' });
+  }
+  cy += 18;
+  hline(M, cy, M + CW, '#e5e5e5', 0.3);
+  cy += 6;
+
+  // ─────────────────────────────────────────────────────────
+  // 3.  TOP PERFORMERS + QUARTER SCORING (two columns)
+  // ─────────────────────────────────────────────────────────
+  const colGap = 8;
+  const colW = (CW - colGap) / 2;
+  const leftX = M;
+  const rightX = M + colW + colGap;
+  const sectionStartY = cy;
+
+  // Left column: Top performers
+  pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); setC('#F7C414');
+  txt('TOP PERFORMERS', leftX, cy + 4);
+  hline(leftX, cy + 5.5, leftX + colW, '#F7C414', 0.3);
+  let ly = cy + 11;
+  function perfLine(emblem, role, who, detail) {
+    pdf.setFontSize(8.5); pdf.setFont('helvetica', 'bold'); setC('#737373');
+    txt(role, leftX, ly);
+    pdf.setFontSize(11); pdf.setFont('helvetica', 'bold'); setC('#1a1a1a');
+    txt(who, leftX + 40, ly);
+    pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); setC('#404040');
+    txt(detail, leftX + 40, ly + 4);
+    ly += 11;
+  }
+  if (topScorer)  perfLine('★', 'TOP SCORER',     '#' + (topScorer.jersey != null ? topScorer.jersey : '') + ' ' + lastName(topScorer.name),  topScorer.g + 'G · ' + topScorer.a + 'A · ' + (topScorer.g + topScorer.a) + ' pts');
+  else { pdf.setFontSize(9); pdf.setFont('helvetica', 'italic'); setC('#737373'); txt('No goals scored', leftX, ly); ly += 11; }
+  if (topAssist)  perfLine('◆', 'TOP PLAYMAKER',  '#' + (topAssist.jersey != null ? topAssist.jersey : '') + ' ' + lastName(topAssist.name),  topAssist.a + 'A · ' + topAssist.g + 'G · ' + (topAssist.a + topAssist.g) + ' pts');
+  if (topGoalie)  perfLine('■', 'GOALIE',         '#' + (topGoalie.jersey != null ? topGoalie.jersey : '') + ' ' + lastName(topGoalie.name),  topGoalie.save + ' saves · ' + tot.oppGoal + ' GA · ' + (tot.savePct != null ? tot.savePct + '% SV' : '—'));
+
+  // Right column: Quarter scoring table
+  pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); setC('#F7C414');
+  txt('SCORING BY QUARTER', rightX, sectionStartY + 4);
+  hline(rightX, sectionStartY + 5.5, rightX + colW, '#F7C414', 0.3);
+  let qy = sectionStartY + 11;
+  pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); setC('#737373');
+  txt('QTR', rightX, qy);
+  txt('UA',  rightX + 26, qy, { align: 'right' });
+  txt('OPP', rightX + 50, qy, { align: 'right' });
+  txt('RUNNING', rightX + colW, qy, { align: 'right' });
+  qy += 4;
+  hline(rightX, qy - 1, rightX + colW, '#e5e5e5', 0.2);
+  qy += 2;
+  pdf.setFont('helvetica', 'normal'); setC('#1a1a1a');
+  let runUA = 0, runOPP = 0;
+  [1, 2, 3, 4].forEach(function (q) {
+    const r = qScore[q] || { ua: 0, opp: 0 };
+    runUA += r.ua; runOPP += r.opp;
+    txt('Q' + q,                rightX, qy);
+    txt(String(r.ua),           rightX + 26, qy, { align: 'right' });
+    txt(String(r.opp),          rightX + 50, qy, { align: 'right' });
+    txt(runUA + '–' + runOPP,   rightX + colW, qy, { align: 'right' });
+    qy += 4.5;
+  });
+
+  cy = Math.max(ly, qy) + 4;
+  hline(M, cy, M + CW, '#e5e5e5', 0.3);
+  cy += 5;
+
+  // ─────────────────────────────────────────────────────────
+  // 4.  BOX SCORE
+  // ─────────────────────────────────────────────────────────
+  pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); setC('#F7C414');
+  txt('BOX SCORE', M, cy + 4);
+  hline(M, cy + 5.5, M + CW, '#F7C414', 0.3);
+  cy += 9;
+
+  // Column layout for the player table
+  const cols = [
+    { key: 'jersey', label: '#',     w:  9,  align: 'right' },
+    { key: 'name',   label: 'Player',w: 50,  align: 'left'  },
+    { key: 'position', label: 'Pos', w: 16,  align: 'left'  },
+    { key: 'g',      label: 'G',     w: 13,  align: 'right' },
+    { key: 'a',      label: 'A',     w: 13,  align: 'right' },
+    { key: 'pts',    label: 'Pts',   w: 14,  align: 'right' },
+    { key: 's',      label: 'S',     w: 13,  align: 'right' },
+    { key: 'sog',    label: 'SOG',   w: 14,  align: 'right' },
+    { key: 'shPct',  label: 'Sh%',   w: 14,  align: 'right' },
+    { key: 'gb',     label: 'GB',    w: 13,  align: 'right' },
+    { key: 'dc',     label: 'DC',    w: 13,  align: 'right' },
+    { key: 'ct',     label: 'CT',    w: 13,  align: 'right' },
+    { key: 'to',     label: 'TO',    w: 13,  align: 'right' },
+    { key: 'save',   label: 'Sv',    w: 13,  align: 'right' }
+  ];
+  // Compute x positions for each column (right-edge for right-aligned)
+  let runningX = M;
+  cols.forEach(function (c) {
+    c.xLeft = runningX;
+    c.xRight = runningX + c.w;
+    runningX += c.w;
+  });
+
+  // Header row
+  setF('#F7C414'); pdf.rect(M, cy, CW, 6, 'F');
+  pdf.setFontSize(8.5); pdf.setFont('helvetica', 'bold'); setC('#1a1a1a');
+  cols.forEach(function (c) {
+    const x = c.align === 'right' ? c.xRight - 1.5 : c.xLeft + 1.5;
+    txt(c.label, x, cy + 4, { align: c.align });
+  });
+  cy += 6;
+
+  // Body rows
+  pdf.setFontSize(8.5);
+  rows.forEach(function (r, i) {
+    if (i % 2 === 1) {
+      setF('#FFFBEB'); pdf.rect(M, cy, CW, 5, 'F');
+    }
+    pdf.setFont('helvetica', 'normal'); setC('#1a1a1a');
+    cols.forEach(function (c) {
+      let val = r[c.key];
+      if (c.key === 'shPct') val = val != null ? val + '%' : '—';
+      else if (val == null || val === '') val = c.key === 'name' || c.key === 'position' ? '' : '0';
+      else if (typeof val === 'number' && val === 0 && c.key !== 'jersey') val = '·';
+      else val = String(val);
+      // Truncate long names to fit
+      if (c.key === 'name' && val.length > 24) val = val.slice(0, 22) + '…';
+      const x = c.align === 'right' ? c.xRight - 1.5 : c.xLeft + 1.5;
+      txt(val, x, cy + 3.6, { align: c.align });
+    });
+    cy += 5;
+  });
+
+  // Totals row
+  setF('#171717'); pdf.rect(M, cy, CW, 6, 'F');
+  pdf.setFont('helvetica', 'bold'); setC('#ffffff');
+  cols.forEach(function (c) {
+    let val = '';
+    if (c.key === 'name')   val = 'TEAM TOTALS';
+    else if (c.key === 'g') val = String(tot.goal);
+    else if (c.key === 'a') val = String(tot.assist);
+    else if (c.key === 'pts') val = String(tot.goal + tot.assist);
+    else if (c.key === 's')  val = String(tot.totalShots || 0);
+    else if (c.key === 'sog') val = String(tot.onGoal || 0);
+    else if (c.key === 'shPct') val = tot.shotPct != null ? tot.shotPct + '%' : '—';
+    else if (c.key === 'gb') val = String(tot.gb);
+    else if (c.key === 'dc') val = String(tot.dc);
+    else if (c.key === 'ct') val = String(tot.ct);
+    else if (c.key === 'to') val = String(tot.to);
+    else if (c.key === 'save') val = String(tot.save);
+    if (!val) return;
+    const x = c.align === 'right' ? c.xRight - 1.5 : c.xLeft + 1.5;
+    txt(val, x, cy + 4, { align: c.align });
+  });
+  cy += 8;
+
+  // ─────────────────────────────────────────────────────────
+  // 5.  GOALIE LINE
+  // ─────────────────────────────────────────────────────────
+  if (topGoalie) {
+    pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); setC('#F7C414');
+    txt('GOALIE LINE', M, cy + 4);
+    hline(M, cy + 5.5, M + CW, '#F7C414', 0.3);
+    cy += 9;
+    pdf.setFontSize(10); pdf.setFont('helvetica', 'normal'); setC('#1a1a1a');
+    const gLine = '#' + (topGoalie.jersey != null ? topGoalie.jersey : '') + ' ' + topGoalie.name +
+                  '  ·  SV: ' + topGoalie.save +
+                  '  ·  GA: ' + tot.oppGoal +
+                  '  ·  SV%: ' + (tot.savePct != null ? tot.savePct + '%' : '—');
+    txt(gLine, M, cy + 4);
+    cy += 8;
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // FOOTER
+  // ─────────────────────────────────────────────────────────
+  pdf.setFontSize(8); pdf.setFont('helvetica', 'normal'); setC('#737373');
+  hline(M, PH - 10, M + CW, '#e5e5e5', 0.3);
+  txt('UA Girls Lacrosse · Coach Report · ' + (dateStr || ''), M, PH - 6);
+  txt('Page 1 of 1', PW - M, PH - 6, { align: 'right' });
+
+  // Build a safe filename: UA_vs_Springboro_2026-05-28.pdf
+  const oppSafe = (oppName || 'OPP').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  const dateSafe = (dateStr || '').replace(/[^A-Za-z0-9]+/g, '-');
+  const filename = 'UA_' + (g.homeAway === 'Away' ? 'at_' : 'vs_') + oppSafe + (dateSafe ? '_' + dateSafe : '') + '.pdf';
+  return { pdf: pdf, filename: filename };
+}
+
+// Helper: pull last name from a full name string
+function lastName(n) { return String(n || '').trim().split(/\s+/).pop() || ''; }
+
+// Hook used by the Report tab button and by the auto-email flow
+function downloadCoachReport() {
+  const r = buildCoachReportPDF();
+  if (!r) return;
+  r.pdf.save(r.filename);
 }
 
 // ----- Report render -----
