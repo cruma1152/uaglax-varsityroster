@@ -500,9 +500,111 @@
     #picker-card { min-width: 95%; }
     #picker-grid { grid-template-columns:repeat(4, 1fr); }
   }
+
+  /* ─── Auth gate (coach/stat-keeper access only) ─── */
+  /* Page-load PIN wall — blocks everything until verified. Sits at z-index 99999
+     with an opaque background so no game data can be glimpsed behind it. */
+  #auth-gate { position:fixed; inset:0; z-index:99999; background:#0d1117; display:flex; align-items:center; justify-content:center; padding:20px; }
+  #auth-gate.hidden { display:none; }
+  #auth-card { width:100%; max-width:360px; background:#161b22; border:1px solid #30363d; border-radius:16px; padding:36px 28px; text-align:center; }
+  .auth-emblem { font-size:44px; margin-bottom:6px; line-height:1; }
+  #auth-card h1 { font-size:22px; color:#F7C414; font-weight:700; letter-spacing:.5px; margin-bottom:4px; }
+  .auth-sub { color:#8b949e; font-size:13px; margin-bottom:24px; }
+  #gate-pin { width:100%; padding:14px 16px; font-size:18px; background:#0d1117; border:1px solid #30363d; border-radius:8px; color:#e6edf3; text-align:center; margin-bottom:12px; letter-spacing:4px; font-family:inherit; }
+  #gate-pin:focus { outline:none; border-color:#F7C414; }
+  #gate-submit { width:100%; padding:14px; font-size:16px; font-weight:700; background:#F7C414; color:#0d1117; border-radius:8px; cursor:pointer; }
+  #gate-submit:disabled { opacity:.55; cursor:wait; }
+  #gate-error { color:#f85149; font-size:13px; margin-top:12px; min-height:18px; }
+  #gate-spinner { display:none; color:#8b949e; font-size:13px; margin-top:10px; }
+  #gate-spinner.show { display:block; }
 </style>
 </head>
 <body>
+
+<!-- ─── Auth gate (must render FIRST inside body to block all stat content until PIN verified) ─── -->
+<div id="auth-gate" role="dialog" aria-modal="true" aria-labelledby="gate-title">
+  <div id="auth-card">
+    <div class="auth-emblem" aria-hidden="true">🥍</div>
+    <h1 id="gate-title">UAGLAX Stats</h1>
+    <div class="auth-sub">Coach &amp; stat-keeper access only</div>
+    <input type="password" id="gate-pin" inputmode="numeric" autocomplete="current-password" placeholder="Enter PIN" />
+    <button type="button" id="gate-submit">Continue</button>
+    <div id="gate-error" aria-live="polite"></div>
+    <div id="gate-spinner">Verifying…</div>
+  </div>
+</div>
+<script>
+(function authGate() {
+  var API = 'https://vh-api.charles-9e5.workers.dev';
+  var gate = document.getElementById('auth-gate');
+  var input = document.getElementById('gate-pin');
+  var btn = document.getElementById('gate-submit');
+  var err = document.getElementById('gate-error');
+  var spin = document.getElementById('gate-spinner');
+
+  function showError(msg) {
+    err.textContent = msg || '';
+    spin.classList.remove('show');
+    btn.disabled = false;
+  }
+  function lockUI(yes) {
+    btn.disabled = yes;
+    if (yes) { spin.classList.add('show'); err.textContent = ''; }
+    else { spin.classList.remove('show'); }
+  }
+  function validatePin(pin) {
+    return fetch(API + '/lacrosse/stats/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-UAGLAX-PIN': pin },
+      body: '{}'
+    }).then(function (res) {
+      return { ok: res.status !== 401, status: res.status };
+    }).catch(function (e) {
+      return { ok: false, status: 0, error: e && e.message };
+    });
+  }
+  function trySubmit() {
+    var pin = input.value.trim();
+    if (!pin) return;
+    lockUI(true);
+    validatePin(pin).then(function (v) {
+      if (v.ok) {
+        localStorage.setItem('uaglaxPin', pin);
+        gate.classList.add('hidden');
+      } else if (v.status === 0) {
+        showError('Network error — check connection and retry.');
+      } else {
+        showError('Wrong PIN — try again.');
+        input.value = '';
+        input.focus();
+      }
+    });
+  }
+
+  btn.addEventListener('click', trySubmit);
+  input.addEventListener('keydown', function (e) { if (e.key === 'Enter') trySubmit(); });
+
+  // Silent revalidate if a PIN is already stored on this device
+  var stored = null;
+  try { stored = localStorage.getItem('uaglaxPin'); } catch (e) { /* private mode */ }
+  if (stored) {
+    lockUI(true);
+    validatePin(stored).then(function (v) {
+      if (v.ok) {
+        gate.classList.add('hidden');
+      } else {
+        if (v.status === 401) {
+          try { localStorage.removeItem('uaglaxPin'); } catch (e) {}
+        }
+        lockUI(false);
+        input.focus();
+      }
+    });
+  } else {
+    setTimeout(function () { input.focus(); }, 100);
+  }
+})();
+</script>
 
 <!-- ─── Game picker ─── -->
 <div id="game-picker" class="show">
