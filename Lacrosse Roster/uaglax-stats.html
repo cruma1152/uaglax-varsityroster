@@ -177,15 +177,21 @@
      against the dark feed row (was a faint #484f58 / .4 opacity gray that
      was hard to spot next to the colored trash emoji). */
   .feed-row .ft-edit { color:#58a6ff; opacity:1; font-weight:600; }
-  /* Trash: light at rest, danger red on hover. The emoji renders in its
-     native colors on most platforms; opacity here just sets the rest tone. */
-  .feed-row .ft-delete { color:#e6edf3; opacity:.95; }
+  /* Trash: now an inline SVG icon (currentColor) so it's truly red at rest,
+     not just on hover. Hover still adds a red background wash for that
+     "danger button" feel. */
+  .feed-row .ft-delete { color:#f85149; opacity:1; display:inline-flex; align-items:center; justify-content:center; }
+  .feed-row .ft-delete svg { display:block; }
   .feed-row .ft-delete:hover, .feed-row .ft-delete:active {
     background:#f8514925; color:#f85149; opacity:1;
   }
   .feed-row .ft-edit:hover, .feed-row .ft-edit:active {
     background:#388bfd25; color:#388bfd; opacity:1;
   }
+  /* Extra breathing room between pencil and trash so the two action
+     icons don't share a fat-finger hit zone on touch devices. Stacks on
+     top of the .feed-row flex gap (10px) for a total separation of ~22px. */
+  .feed-row .ft-edit + .ft-delete { margin-left: 12px; }
   /* Edit modal — matches the dark theme of the rest of the app. */
   #edit-modal {
     position:fixed; inset:0; background:rgba(0,0,0,.7);
@@ -1845,7 +1851,7 @@ function renderFeed() {
       '<span class="ft-stat">' + e.statType + '</span>' +
       '<span class="ft-player">' + player + '</span>' +
       (showEdit ? '<button class="ft-edit" title="Edit" onclick="openEdit(\'' + e.recordId + '\')">✎</button>' : '') +
-      (state.locked ? '' : '<button class="ft-delete" title="Delete" onclick="requestDeleteEvent(\'' + identifier + '\')">🗑</button>') +
+      (state.locked ? '' : '<button class="ft-delete" title="Delete" onclick="requestDeleteEvent(\'' + identifier + '\')"><svg viewBox="0 0 24 24" width="15" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>') +
       '</div>';
   }).join('');
 }
