@@ -515,16 +515,23 @@
   #adminmodal .confirm { background:#f85149; color:#ffffff; }
   #adminmodal .err { color:#f85149; font-size:13px; min-height:18px; margin-top:8px; }
 
-  /* ─── Opp Goal jersey prompt ─── */
+  /* ─── Opp Goal jersey prompt with built-in numeric keypad ───
+     We render our own keypad so the modal works on iPads where the soft
+     keyboard sometimes doesn't appear from a programmatic focus. The
+     display is a styled div (not an input) so iOS can't try and hijack it. */
   #oppmodal { position:fixed; inset:0; background:rgba(0,0,0,.8); display:none; align-items:center; justify-content:center; z-index:128; }
   #oppmodal.show { display:flex; }
-  #oppmodal .pin-card { background:#161b22; border:1px solid #30363d; border-radius:14px; padding:28px 32px; max-width:380px; width:90%; text-align:center; }
-  #oppmodal h3 { font-size:20px; margin-bottom:8px; color:#F7C414; }
-  #oppmodal p { font-size:13px; color:#8b949e; margin-bottom:18px; }
-  #oppmodal input { width:100%; padding:14px 16px; font-size:22px; border-radius:8px; border:1px solid #30363d; background:#0d1117; color:#e6edf3; text-align:center; letter-spacing:4px; font-weight:700; }
-  #oppmodal input:focus { outline:none; border-color:#F7C414; }
+  #oppmodal .pin-card { background:#161b22; border:1px solid #30363d; border-radius:14px; padding:24px 24px 22px; max-width:360px; width:92%; text-align:center; }
+  #oppmodal h3 { font-size:20px; margin-bottom:6px; color:#F7C414; }
+  #oppmodal p { font-size:13px; color:#8b949e; margin-bottom:14px; }
+  #opp-display { width:100%; padding:14px 16px; font-size:32px; font-weight:700; border-radius:8px; border:1px solid #30363d; background:#0d1117; color:#e6edf3; text-align:center; letter-spacing:6px; min-height:64px; display:flex; align-items:center; justify-content:center; }
+  #opp-display.placeholder { color:#484f58; font-weight:400; letter-spacing:2px; }
+  #opp-keypad { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-top:14px; }
+  #opp-keypad button { padding:16px 0; font-size:22px; font-weight:700; background:#21262d; color:#e6edf3; border:1px solid #30363d; border-radius:10px; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent; user-select:none; }
+  #opp-keypad button:active { background:#30363d; transform:scale(.97); }
+  #opp-keypad .key-action { background:#0d1117; color:#8b949e; font-weight:600; font-size:18px; }
   #oppmodal .pin-actions { display:flex; gap:10px; margin-top:14px; }
-  #oppmodal .pin-actions button { flex:1; padding:12px; border-radius:8px; font-size:14px; font-weight:600; }
+  #oppmodal .pin-actions button { flex:1; padding:14px; border-radius:8px; font-size:15px; font-weight:600; }
   #oppmodal .cancel { background:#21262d; color:#c9d1d9; border:1px solid #30363d; }
   #oppmodal .confirm { background:#F7C414; color:#0d1117; }
 
@@ -975,14 +982,29 @@
 </div>
 
 <!-- Opp Goal jersey prompt: optional, lets the keeper note which opposing
-     player scored. The value is stored in the event's Note field (e.g. "#23")
-     and rendered as "OPP #23" in the feed row. Leave blank to log a generic
-     OPP Goal as before. -->
+     player scored. Built-in numeric keypad so it works reliably on iPad
+     without depending on the system soft keyboard. The value is stored in
+     the event's Note field (e.g. "#23") and rendered as "OPP #23" in the
+     feed row. Leave blank to log a generic OPP Goal as before. -->
 <div id="oppmodal">
   <div class="pin-card">
     <h3>Opp Goal</h3>
     <p>Opposing player's jersey? (Optional)</p>
-    <input id="opp-jersey-input" type="tel" maxlength="3" placeholder="##" autocomplete="off" inputmode="numeric">
+    <div id="opp-display" class="placeholder">##</div>
+    <div id="opp-keypad">
+      <button type="button" onclick="oppKey('1')">1</button>
+      <button type="button" onclick="oppKey('2')">2</button>
+      <button type="button" onclick="oppKey('3')">3</button>
+      <button type="button" onclick="oppKey('4')">4</button>
+      <button type="button" onclick="oppKey('5')">5</button>
+      <button type="button" onclick="oppKey('6')">6</button>
+      <button type="button" onclick="oppKey('7')">7</button>
+      <button type="button" onclick="oppKey('8')">8</button>
+      <button type="button" onclick="oppKey('9')">9</button>
+      <button type="button" class="key-action" onclick="oppKeyClear()">Clear</button>
+      <button type="button" onclick="oppKey('0')">0</button>
+      <button type="button" class="key-action" onclick="oppKeyBack()" aria-label="Backspace">⌫</button>
+    </div>
     <div class="pin-actions">
       <button class="cancel" onclick="cancelOppGoal()">Cancel</button>
       <button class="confirm" onclick="submitOppGoal()">Log Goal</button>
@@ -1246,12 +1268,23 @@ function handleWriteLocked(res) {
   }
   return false;
 }
-// Enter handlers for admin override and opp jersey modals
+// Enter handlers for the keyed-in PIN modals + physical-keyboard support for
+// the Opp Goal keypad (digits typed on a Smart Keyboard / Bluetooth keyboard
+// still register, even though there's no <input> field).
 document.addEventListener('DOMContentLoaded', function () {
   const adm = document.getElementById('admin-input');
   if (adm) adm.addEventListener('keydown', function (e) { if (e.key === 'Enter') submitAdminOverride(); });
-  const opp = document.getElementById('opp-jersey-input');
-  if (opp) opp.addEventListener('keydown', function (e) { if (e.key === 'Enter') submitOppGoal(); });
+
+  // When the Opp Goal modal is visible, route physical-keyboard digit keys
+  // through the same handlers the on-screen buttons use.
+  document.addEventListener('keydown', function (e) {
+    const m = document.getElementById('oppmodal');
+    if (!m || !m.classList.contains('show')) return;
+    if (e.key === 'Enter') { e.preventDefault(); submitOppGoal(); return; }
+    if (e.key === 'Escape') { e.preventDefault(); cancelOppGoal(); return; }
+    if (e.key === 'Backspace') { e.preventDefault(); oppKeyBack(); return; }
+    if (/^[0-9]$/.test(e.key)) { e.preventDefault(); oppKey(e.key); return; }
+  });
 });
 
 // ============================================================================
@@ -1519,24 +1552,46 @@ function logOppGoal() {
 
 // Opp Goal jersey prompt — lets the keeper optionally tag the opposing
 // player's number. Stored in the event's Note field, rendered "OPP #23"
-// in the feed row. Blank = generic Opp Goal as before.
+// in the feed row. Blank = generic Opp Goal as before. Uses an in-modal
+// numeric keypad so it works on iPad without depending on the soft keyboard.
+let _oppValue = '';
+function _refreshOppDisplay() {
+  const d = document.getElementById('opp-display');
+  if (!d) return;
+  if (_oppValue) {
+    d.textContent = _oppValue;
+    d.classList.remove('placeholder');
+  } else {
+    d.textContent = '##';
+    d.classList.add('placeholder');
+  }
+}
+function oppKey(digit) {
+  if (_oppValue.length >= 3) return;     // jersey numbers up to 3 digits
+  _oppValue += String(digit);
+  _refreshOppDisplay();
+}
+function oppKeyBack() {
+  _oppValue = _oppValue.slice(0, -1);
+  _refreshOppDisplay();
+}
+function oppKeyClear() {
+  _oppValue = '';
+  _refreshOppDisplay();
+}
 function openOppModal() {
+  _oppValue = '';
+  _refreshOppDisplay();
   const m = document.getElementById('oppmodal');
-  const inp = document.getElementById('opp-jersey-input');
-  if (inp) inp.value = '';
   if (m) m.classList.add('show');
-  setTimeout(function () { if (inp) inp.focus(); }, 50);
 }
 function cancelOppGoal() {
   const m = document.getElementById('oppmodal');
   if (m) m.classList.remove('show');
 }
 function submitOppGoal() {
-  const inp = document.getElementById('opp-jersey-input');
-  let jersey = (inp && inp.value || '').trim();
-  jersey = jersey.replace(/^#+/, '').trim();   // tolerate "23" or "#23"
-  // Strip anything that isn't a digit so the note stores cleanly.
-  jersey = jersey.replace(/\D+/g, '');
+  // Already strictly digits via the keypad, but normalise to be safe.
+  const jersey = (_oppValue || '').replace(/\D+/g, '').slice(0, 3);
   const note = jersey ? '#' + jersey : '';
   cancelOppGoal();
   logEvent({ statType: 'Opp Goal', playerId: null, note: note });
