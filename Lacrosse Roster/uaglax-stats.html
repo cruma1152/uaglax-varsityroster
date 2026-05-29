@@ -168,11 +168,18 @@
   .feed-row .ft-stat { font-weight:600; min-width:60px; font-size:13px; }
   .feed-row .ft-player { flex:1; }
   .feed-row .ft-delete, .feed-row .ft-edit {
-    background:transparent; color:#484f58; padding:6px 10px; border-radius:6px;
-    font-size:14px; line-height:1; opacity:.4; cursor:pointer;
+    background:transparent; padding:6px 10px; border-radius:6px;
+    font-size:16px; line-height:1; cursor:pointer;
     transition: background .12s ease, color .12s ease, opacity .12s ease;
     border: 0;
   }
+  /* Edit pencil: bright blue at rest so it reads as a clear action icon
+     against the dark feed row (was a faint #484f58 / .4 opacity gray that
+     was hard to spot next to the colored trash emoji). */
+  .feed-row .ft-edit { color:#58a6ff; opacity:1; font-weight:600; }
+  /* Trash: light at rest, danger red on hover. The emoji renders in its
+     native colors on most platforms; opacity here just sets the rest tone. */
+  .feed-row .ft-delete { color:#e6edf3; opacity:.95; }
   .feed-row .ft-delete:hover, .feed-row .ft-delete:active {
     background:#f8514925; color:#f85149; opacity:1;
   }
