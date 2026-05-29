@@ -181,7 +181,11 @@
      not just on hover. Hover still adds a red background wash for that
      "danger button" feel. */
   .feed-row .ft-delete { color:#f85149; opacity:1; display:inline-flex; align-items:center; justify-content:center; }
-  .feed-row .ft-delete svg { display:block; }
+  /* pointer-events:none so taps on the SVG (or the empty space between its
+     stroke lines) bubble straight to the button's onclick handler. Without
+     this, taps inside the trash-can outline can miss because the paths are
+     stroke-only and don't form a filled hit zone. */
+  .feed-row .ft-delete svg { display:block; pointer-events:none; }
   .feed-row .ft-delete:hover, .feed-row .ft-delete:active {
     background:#f8514925; color:#f85149; opacity:1;
   }
