@@ -501,6 +501,31 @@
   #pinmodal .confirm { background:#F7C414; color:#0d1117; }
   #pinmodal .err { color:#f85149; font-size:13px; min-height:18px; margin-top:8px; }
 
+  /* ─── Admin override modal (reuses pinmodal layout but red-themed) ─── */
+  #adminmodal { position:fixed; inset:0; background:rgba(0,0,0,.8); display:none; align-items:center; justify-content:center; z-index:135; }
+  #adminmodal.show { display:flex; }
+  #adminmodal .pin-card { background:#161b22; border:1px solid #f85149; border-radius:14px; padding:28px 32px; max-width:380px; width:90%; text-align:center; }
+  #adminmodal h3 { font-size:20px; margin-bottom:8px; color:#f85149; }
+  #adminmodal p { font-size:13px; color:#8b949e; margin-bottom:18px; }
+  #adminmodal input { width:100%; padding:14px 16px; font-size:18px; border-radius:8px; border:1px solid #30363d; background:#0d1117; color:#e6edf3; text-align:center; letter-spacing:6px; }
+  #adminmodal input:focus { outline:none; border-color:#f85149; }
+  #adminmodal .pin-actions { display:flex; gap:10px; margin-top:14px; }
+  #adminmodal .pin-actions button { flex:1; padding:12px; border-radius:8px; font-size:14px; font-weight:600; }
+  #adminmodal .cancel { background:#21262d; color:#c9d1d9; border:1px solid #30363d; }
+  #adminmodal .confirm { background:#f85149; color:#ffffff; }
+  #adminmodal .err { color:#f85149; font-size:13px; min-height:18px; margin-top:8px; }
+
+  /* ─── Final-game lock banner ─── */
+  #final-lock-bar { display:none; align-items:center; gap:12px; padding:10px 16px; background:rgba(248,81,73,.12); border-bottom:1px solid rgba(248,81,73,.4); color:#f0b8b6; }
+  #final-lock-bar.show { display:flex; }
+  #final-lock-bar.unlocked { background:rgba(63,185,80,.10); border-bottom-color:rgba(63,185,80,.4); color:#a8e0b3; }
+  .flb-icon { font-size:20px; line-height:1; }
+  .flb-text { flex:1; display:flex; flex-direction:column; line-height:1.2; }
+  .flb-text strong { font-size:13px; font-weight:700; }
+  .flb-sub { font-size:11px; opacity:.8; }
+  .flb-btn { padding:8px 14px; background:#f85149; color:#ffffff; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; }
+  #final-lock-bar.unlocked .flb-btn { background:#3fb950; }
+
   /* Toast */
   #toast { position:fixed; bottom:60px; left:50%; transform:translateX(-50%); background:#161b22; border:1px solid #30363d; padding:12px 20px; border-radius:10px; color:#e6edf3; opacity:0; transition:opacity .2s; pointer-events:none; z-index:300; }
   #toast.show { opacity:1; }
@@ -651,6 +676,18 @@
       <button class="unlock locked" id="unlock-btn" onclick="toggleUnlock()" title="Unlock to enter stats">🔒</button>
       <button onclick="openSettings()">⚙</button>
     </div>
+  </div>
+
+  <!-- Final-game lock banner. Shown when the selected game has Final=true
+       and no admin override is active. Blocks new entries / edits / deletes;
+       Summary and Report tabs stay browsable. -->
+  <div id="final-lock-bar" hidden>
+    <span class="flb-icon" aria-hidden="true">🔒</span>
+    <div class="flb-text">
+      <strong>Game finalized</strong>
+      <span class="flb-sub">Stats are read-only. Tap Override to edit.</span>
+    </div>
+    <button type="button" class="flb-btn" onclick="openAdminOverride()">Admin Override</button>
   </div>
 
   <!-- Tab bar -->
@@ -920,6 +957,22 @@
   </div>
 </div>
 
+<!-- Admin override modal: separate PIN to edit a finalized game. The
+     entered PIN is held in memory only (state.adminPin) and is reset on
+     page reload, so override always requires re-entry after a refresh. -->
+<div id="adminmodal">
+  <div class="pin-card admin-card">
+    <h3>Admin Override</h3>
+    <p>This game is final. Enter the admin PIN to make edits.</p>
+    <input id="admin-input" type="tel" maxlength="12" placeholder="••••••" autocomplete="off" inputmode="numeric">
+    <div class="err" id="admin-err"></div>
+    <div class="pin-actions">
+      <button class="cancel" onclick="closeAdminOverride()">Cancel</button>
+      <button class="confirm" id="admin-submit" onclick="submitAdminOverride()">Override</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -950,8 +1003,17 @@ const state = {
   refreshTimer: null,
   activeQuarters: 'all',              // 'all' or Set of ints
   pickerSort: localStorage.getItem('uaglaxPickerSort') || 'jersey',
-  reportSort: { col: 'jersey', dir: 'asc' }  // box-score sort state
+  reportSort: { col: 'jersey', dir: 'asc' },  // box-score sort state
+  // Final-game lock: when the selected game has Final=true the worker
+  // rejects writes (423) unless the admin PIN is sent. adminPin is held
+  // in memory only — never persisted — so an override ends at page reload.
+  adminPin: '',
+  finalLock: false                    // true when game is Final and not overridden
 };
+
+// Returns the PIN to use for write requests. Admin PIN takes precedence so
+// that override sessions can edit finalized games.
+function getActivePin() { return state.adminPin || state.pin; }
 
 // Sort defaults: text/pos columns default ascending; stats default descending (most-first)
 const REPORT_SORT_DEFAULT_DIR = {
@@ -1028,6 +1090,11 @@ async function loadGames() {
 
 function selectGame(g) {
   state.game = g;
+  // Reset per-game admin override state. Each new game requires its own
+  // override decision so a keeper can't accidentally carry adminPin between
+  // games.
+  state.adminPin = '';
+  state.finalLock = !!(g && g.final);
   $('opp-name').textContent = (g.opponent || 'OPP').toUpperCase().slice(0, 10);
   $('game-label').textContent = (g.homeAway === 'Away' ? '@' : 'vs') + ' ' + (g.opponent || '');
   $('game-picker').classList.remove('show');
@@ -1036,11 +1103,121 @@ function selectGame(g) {
   refresh();
   startRefresh();
   flushQueue();
-  // Initial tab: if locked, default to Summary (no PIN); if unlocked, Entry.
-  switchTab(state.locked ? 'summary' : 'entry');
+  // Initial tab: if game is final or keeper is locked, default to Summary;
+  // otherwise default to Entry.
+  switchTab((state.locked || state.finalLock) ? 'summary' : 'entry');
   updateLockUI();
   updateStartGameUI();
+  applyFinalLockUI();
 }
+
+// Applies the visual state of the Final-game lock banner and gates entry-mode
+// UI. Called whenever finalLock / adminPin / locked changes.
+function applyFinalLockUI() {
+  const bar = document.getElementById('final-lock-bar');
+  if (!bar) return;
+  if (!state.game || !state.game.final) {
+    bar.classList.remove('show', 'unlocked');
+    bar.hidden = true;
+    return;
+  }
+  bar.hidden = false;
+  bar.classList.add('show');
+  const overrideActive = !!state.adminPin;
+  bar.classList.toggle('unlocked', overrideActive);
+  bar.querySelector('.flb-text strong').textContent =
+    overrideActive ? 'Override active' : 'Game finalized';
+  bar.querySelector('.flb-sub').textContent =
+    overrideActive ? 'You can edit until you switch games or reload.'
+                   : 'Stats are read-only. Tap Override to edit.';
+  bar.querySelector('.flb-btn').textContent =
+    overrideActive ? 'Lock again' : 'Admin Override';
+  bar.querySelector('.flb-btn').onclick =
+    overrideActive ? clearAdminOverride : openAdminOverride;
+  // Treat as locked-for-entry whenever finalLock is true and no override.
+  // Reuses the existing entry-tab lock-overlay UI.
+  if (state.finalLock && !overrideActive) {
+    const grid = document.getElementById('stat-grid');
+    const overlay = document.getElementById('lock-overlay');
+    if (grid) grid.classList.remove('show');
+    if (overlay) overlay.classList.add('show');
+  } else {
+    // Hand control back to updateLockUI so the normal locked/unlocked logic applies.
+    if (typeof updateLockUI === 'function') updateLockUI();
+  }
+}
+
+// Override modal handlers
+function openAdminOverride() {
+  const m = document.getElementById('adminmodal');
+  const inp = document.getElementById('admin-input');
+  const err = document.getElementById('admin-err');
+  if (inp) inp.value = '';
+  if (err) err.textContent = '';
+  if (m) m.classList.add('show');
+  setTimeout(function () { if (inp) inp.focus(); }, 50);
+}
+function closeAdminOverride() {
+  const m = document.getElementById('adminmodal');
+  if (m) m.classList.remove('show');
+}
+async function submitAdminOverride() {
+  const inp = document.getElementById('admin-input');
+  const err = document.getElementById('admin-err');
+  const btn = document.getElementById('admin-submit');
+  const pin = (inp && inp.value || '').trim();
+  if (!pin) return;
+  if (btn) btn.disabled = true;
+  if (err) err.textContent = '';
+  try {
+    const res = await fetch(API_BASE + '/lacrosse/stats/verify-admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-UAGLAX-PIN': pin },
+      body: '{}'
+    });
+    if (res.status === 401) {
+      if (err) err.textContent = 'Wrong admin PIN — try again.';
+      if (inp) { inp.value = ''; inp.focus(); }
+      if (btn) btn.disabled = false;
+      return;
+    }
+    if (!res.ok) {
+      if (err) err.textContent = 'Override failed (' + res.status + ')';
+      if (btn) btn.disabled = false;
+      return;
+    }
+    // Success — keep admin PIN in memory only (not localStorage)
+    state.adminPin = pin;
+    closeAdminOverride();
+    applyFinalLockUI();
+    toast('Override active');
+  } catch (e) {
+    if (err) err.textContent = 'Network error: ' + e.message;
+    if (btn) btn.disabled = false;
+  }
+}
+function clearAdminOverride() {
+  state.adminPin = '';
+  applyFinalLockUI();
+  toast('Override cleared');
+}
+// Centralised handler for write responses that returned 423 Locked. Surfaces
+// the override modal so the user can re-attempt with admin PIN.
+function handleWriteLocked(res) {
+  if (res && res.status === 423) {
+    state.finalLock = true;
+    applyFinalLockUI();
+    toast('Game is final — admin override required');
+    openAdminOverride();
+    return true;
+  }
+  return false;
+}
+// Enter handler for admin modal
+document.addEventListener('DOMContentLoaded', function () {
+  const inp = document.getElementById('admin-input');
+  if (inp) inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') submitAdminOverride(); });
+});
 
 // ============================================================================
 //   Start Game — flips the chosen Schedule row from "no score" to 0-0 so
@@ -1055,12 +1232,13 @@ async function startGame() {
   try {
     const res = await fetch(API_BASE + '/lacrosse/schedule/' + state.game.recordId, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'X-UAGLAX-PIN': state.pin },
+      headers: { 'Content-Type': 'application/json', 'X-UAGLAX-PIN': getActivePin() },
       body: JSON.stringify({ ourScore: 0, oppScore: 0 })
     });
     if (!res.ok) {
       const t = await res.text();
-      if (res.status === 401) { toast('PIN rejected'); }
+      if (res.status === 423) { handleWriteLocked(res); }
+      else if (res.status === 401) { toast('PIN rejected'); }
       else { toast('Start failed (' + res.status + ')'); }
       console.error('startGame failed', res.status, t);
       if (btn) { btn.disabled = false; }
@@ -1094,6 +1272,10 @@ function updateStartGameUI() {
 function switchGame() {
   state.game = null;
   state.events = [];
+  // Drop any per-game override state so the next game starts clean.
+  state.adminPin = '';
+  state.finalLock = false;
+  applyFinalLockUI();
   $('settings').classList.remove('show');
   showGamePicker();
 }
@@ -1308,7 +1490,7 @@ async function flushQueue() {
     try {
       const res = await fetch(API_BASE + '/lacrosse/stats/events', {
         method: 'POST',
-        headers: { 'Content-Type':'application/json', 'X-UAGLAX-PIN': state.pin },
+        headers: { 'Content-Type':'application/json', 'X-UAGLAX-PIN': getActivePin() },
         body: JSON.stringify({
           gameId: state.game.recordId,
           playerId: evt.playerId || undefined,
@@ -1329,6 +1511,13 @@ async function flushQueue() {
           state.events[idx].event     = data.event;
         }
         outcome = 'ok';
+      } else if (res.status === 423) {
+        // Final-game lock. Halt the queue and surface the override modal so
+        // the keeper can supply admin PIN (or cancel and switch games).
+        handleWriteLocked(res);
+        const idx = state.events.findIndex(function (e) { return e._localId === evt._localId; });
+        if (idx >= 0) { state.events[idx]._pending = false; state.events[idx]._failed = true; }
+        outcome = 'halt';
       } else if (res.status === 401) {
         // PIN issue — halt the whole queue so the keeper sees the lock UI.
         toast('PIN rejected — re-lock and unlock');
@@ -1391,8 +1580,12 @@ async function undoLast() {
     return;
   }
   try {
-    const res = await fetch(API_BASE + '/lacrosse/stats/events/' + last.recordId, { method: 'DELETE', headers: { 'X-UAGLAX-PIN': state.pin } });
-    if (!res.ok) { toast('Undo failed: HTTP ' + res.status); return; }
+    const res = await fetch(API_BASE + '/lacrosse/stats/events/' + last.recordId, { method: 'DELETE', headers: { 'X-UAGLAX-PIN': getActivePin() } });
+    if (!res.ok) {
+      if (handleWriteLocked(res)) return;
+      toast('Undo failed: HTTP ' + res.status);
+      return;
+    }
     state.events.splice(state.events.indexOf(last), 1);
     renderAll();
     toast('Undone');
@@ -1451,8 +1644,18 @@ async function executeDeleteEvent() {
     return;
   }
   try {
-    const res = await fetch(API_BASE + '/lacrosse/stats/events/' + evt.recordId, { method: 'DELETE', headers: { 'X-UAGLAX-PIN': state.pin } });
-    if (!res.ok) { toast('Delete failed: HTTP ' + res.status); state.pendingDelete = null; $('delconfirm').classList.remove('show'); return; }
+    const res = await fetch(API_BASE + '/lacrosse/stats/events/' + evt.recordId, { method: 'DELETE', headers: { 'X-UAGLAX-PIN': getActivePin() } });
+    if (!res.ok) {
+      if (handleWriteLocked(res)) {
+        state.pendingDelete = null;
+        $('delconfirm').classList.remove('show');
+        return;
+      }
+      toast('Delete failed: HTTP ' + res.status);
+      state.pendingDelete = null;
+      $('delconfirm').classList.remove('show');
+      return;
+    }
     state.events.splice(state.events.indexOf(evt), 1);
     state.pendingDelete = null; $('delconfirm').classList.remove('show');
     renderAll();
@@ -1573,10 +1776,16 @@ async function saveEdit() {
   try {
     const res = await fetch(API_BASE + '/lacrosse/stats/events/' + recordId, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'X-UAGLAX-PIN': state.pin },
+      headers: { 'Content-Type': 'application/json', 'X-UAGLAX-PIN': getActivePin() },
       body: JSON.stringify(body)
     });
     if (!res.ok) {
+      if (res.status === 423) {
+        $('edit-err').textContent = 'Game is final — admin override required.';
+        $('edit-save-btn').disabled = false;
+        handleWriteLocked(res);
+        return;
+      }
       const msg = res.status === 401 ? 'PIN rejected — re-lock and unlock' : 'Edit failed (' + res.status + ')';
       $('edit-err').textContent = msg;
       $('edit-save-btn').disabled = false;
