@@ -2813,20 +2813,27 @@ function buildCoachReportPDF() {
     runningX += c.w;
   });
 
+  // Row sizing — tightened so a full ~30-player roster + totals + goalie
+  // line + footer all fit on one portrait page. The original 5mm rows
+  // overflowed the footer area on a 28+ player roster.
+  const ROW_H_HDR    = 5.5;
+  const ROW_H_BODY   = 4.3;
+  const ROW_H_TOTAL  = 6.5;
+
   // Header row
-  setF('#F7C414'); pdf.rect(M, cy, CW, 6, 'F');
+  setF('#F7C414'); pdf.rect(M, cy, CW, ROW_H_HDR, 'F');
   pdf.setFontSize(8.5); pdf.setFont('helvetica', 'bold'); setC('#1a1a1a');
   cols.forEach(function (c) {
     const x = c.align === 'right' ? c.xRight - 1.5 : c.xLeft + 1.5;
-    txt(c.label, x, cy + 4, { align: c.align });
+    txt(c.label, x, cy + ROW_H_HDR - 1.8, { align: c.align });
   });
-  cy += 6;
+  cy += ROW_H_HDR;
 
   // Body rows
-  pdf.setFontSize(8.5);
+  pdf.setFontSize(8); // shrunk slightly from 8.5 to keep rows readable at 4.3mm
   rows.forEach(function (r, i) {
     if (i % 2 === 1) {
-      setF('#FFFBEB'); pdf.rect(M, cy, CW, 5, 'F');
+      setF('#FFFBEB'); pdf.rect(M, cy, CW, ROW_H_BODY, 'F');
     }
     pdf.setFont('helvetica', 'normal'); setC('#1a1a1a');
     cols.forEach(function (c) {
@@ -2838,14 +2845,14 @@ function buildCoachReportPDF() {
       // Truncate long names to fit the narrower portrait Player column.
       if (c.key === 'name' && val.length > 21) val = val.slice(0, 19) + '…';
       const x = c.align === 'right' ? c.xRight - 1.5 : c.xLeft + 1.5;
-      txt(val, x, cy + 3.6, { align: c.align });
+      txt(val, x, cy + ROW_H_BODY - 1.0, { align: c.align });
     });
-    cy += 5;
+    cy += ROW_H_BODY;
   });
 
   // Totals row
-  setF('#171717'); pdf.rect(M, cy, CW, 6, 'F');
-  pdf.setFont('helvetica', 'bold'); setC('#ffffff');
+  setF('#171717'); pdf.rect(M, cy, CW, ROW_H_TOTAL, 'F');
+  pdf.setFontSize(8.5); pdf.setFont('helvetica', 'bold'); setC('#ffffff');
   cols.forEach(function (c) {
     let val = '';
     if (c.key === 'name')   val = 'TEAM TOTALS';
@@ -2862,25 +2869,26 @@ function buildCoachReportPDF() {
     else if (c.key === 'save') val = String(tot.save);
     if (!val) return;
     const x = c.align === 'right' ? c.xRight - 1.5 : c.xLeft + 1.5;
-    txt(val, x, cy + 4, { align: c.align });
+    txt(val, x, cy + ROW_H_TOTAL - 1.8, { align: c.align });
   });
-  cy += 8;
+  cy += ROW_H_TOTAL + 1;
 
   // ─────────────────────────────────────────────────────────
-  // 5.  GOALIE LINE
+  // 5.  GOALIE LINE — tightened so it stays clear of the footer reserve
+  //     (PH - 18mm) even with a full 30-player roster above it.
   // ─────────────────────────────────────────────────────────
-  if (topGoalie) {
+  if (topGoalie && cy + 14 < PH - 14) {
     pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); setC('#F7C414');
-    txt('GOALIE LINE', M, cy + 4);
-    hline(M, cy + 5.5, M + CW, '#F7C414', 0.3);
-    cy += 9;
-    pdf.setFontSize(10); pdf.setFont('helvetica', 'normal'); setC('#1a1a1a');
+    txt('GOALIE LINE', M, cy + 3.6);
+    hline(M, cy + 5, M + CW, '#F7C414', 0.3);
+    cy += 7;
+    pdf.setFontSize(9.5); pdf.setFont('helvetica', 'normal'); setC('#1a1a1a');
     const gLine = '#' + (topGoalie.jersey != null ? topGoalie.jersey : '') + ' ' + topGoalie.name +
                   '  ·  SV: ' + topGoalie.save +
                   '  ·  GA: ' + tot.oppGoal +
                   '  ·  SV%: ' + (tot.savePct != null ? tot.savePct + '%' : '—');
-    txt(gLine, M, cy + 4);
-    cy += 8;
+    txt(gLine, M, cy + 3.6);
+    cy += 6;
   }
 
   // ─────────────────────────────────────────────────────────
