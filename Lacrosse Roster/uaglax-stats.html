@@ -2420,9 +2420,10 @@ function renderShootingByHalf() {
 }
 
 // ----- Coach's Takeaways -----
-function renderCoachTakeaways(totals) {
-  const list = $('takeaways-list');
-  if (!list) return;
+// Pure insight engine — returns an array of { tone, text } items. Shared by
+// the Summary-tab DOM renderer and the PDF coach report so the two never
+// drift apart.
+function computeCoachTakeaways(totals) {
   const items = [];
   const totalShots = totals.totalShots;
   const dcTotal = totals.dc + totals.dlost;
@@ -2462,6 +2463,13 @@ function renderCoachTakeaways(totals) {
   const q1HasShots = q1Stats.some(function (e) { return e.statType === 'Goal' || e.statType === 'SOG' || e.statType === 'Shot'; });
   const q1Goals = q1Stats.filter(function (e) { return e.statType === 'Goal'; }).length;
   if (q1HasShots && q1Goals === 0) items.push({ tone: 'negative', text: 'Zero UA goals in Q1 despite shots on goal — slow start.' });
+  return items;
+}
+
+function renderCoachTakeaways(totals) {
+  const list = $('takeaways-list');
+  if (!list) return;
+  const items = computeCoachTakeaways(totals);
   // Render
   if (items.length === 0) {
     list.innerHTML = '<li class="ta-empty">Not enough data yet — tag more events to see insights.</li>';
@@ -2897,7 +2905,176 @@ function buildCoachReportPDF() {
   pdf.setFontSize(8); pdf.setFont('helvetica', 'normal'); setC('#737373');
   hline(M, PH - 10, M + CW, '#e5e5e5', 0.3);
   txt('UA Girls Lacrosse · Coach Report · ' + (dateStr || ''), M, PH - 6);
-  txt('Page 1 of 1', PW - M, PH - 6, { align: 'right' });
+  txt('Page 1 of 2', PW - M, PH - 6, { align: 'right' });
+
+  // ═════════════════════════════════════════════════════════
+  //   PAGE 2 — TEAM ANALYTICS
+  // ═════════════════════════════════════════════════════════
+  pdf.addPage();
+  let p2y = M;
+
+  // ---- Masthead ----
+  pdf.setFontSize(14); pdf.setFont('helvetica', 'bold'); setC('#1a1a1a');
+  txt('UA GIRLS LACROSSE', M, p2y + 6);
+  pdf.setFontSize(10); pdf.setFont('helvetica', 'normal'); setC('#404040');
+  txt('Team Analytics · ' + venue + oppName, M, p2y + 11);
+  if (ourScore != null && oppScore != null) {
+    pdf.setFontSize(12); pdf.setFont('helvetica', 'bold'); setC('#1a1a1a');
+    txt('UA ' + ourScore + ' – ' + oppScore + ' ' + oppName.toUpperCase().slice(0, 12), PW - M, p2y + 6, { align: 'right' });
+  }
+  pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); setC('#737373');
+  if (dateStr) txt(dateStr, PW - M, p2y + 11, { align: 'right' });
+  p2y += 14;
+  hline(M, p2y, M + CW, '#F7C414', 0.6);
+  p2y += 7;
+
+  // ---- KPI TILES ----
+  const shotsFaced2 = tot.save + tot.oppGoal;
+  const toMargin = tot.ct - tot.to;
+  const tiles = [
+    { label: 'DRAW CONTROL', value: tot.drawPct != null ? tot.drawPct + '%' : '—', sub: tot.dc + '-' + tot.dlost + ' won',   color: '#8957e5' },
+    { label: 'GROUND BALL',  value: tot.gbPct   != null ? tot.gbPct   + '%' : '—', sub: tot.gb + '-' + tot.mgb + ' won',     color: '#bf8700' },
+    { label: 'TO MARGIN',    value: (toMargin > 0 ? '+' : '') + toMargin,          sub: tot.ct + ' caused / ' + tot.to + ' lost', color: toMargin >= 0 ? '#22863a' : '#cb2431' },
+    { label: 'SHOOTING',     value: tot.shotPct != null ? tot.shotPct + '%' : '—', sub: tot.onGoal + '/' + tot.totalShots + ' on goal', color: '#0969da' },
+    { label: 'SAVE %',       value: tot.savePct != null ? tot.savePct + '%' : '—', sub: tot.save + '/' + shotsFaced2 + ' faced', color: '#1a7f37' }
+  ];
+  const tGap = 4, tN = tiles.length, tW = (CW - (tN - 1) * tGap) / tN, tH = 20;
+  tiles.forEach(function (t, i) {
+    const tx = M + i * (tW + tGap);
+    setD('#e5e5e5', 0.3); setF('#fafafa'); pdf.roundedRect(tx, p2y, tW, tH, 1.5, 1.5, 'FD');
+    setF(t.color); pdf.rect(tx, p2y, 1.4, tH, 'F');
+    pdf.setFontSize(6.6); pdf.setFont('helvetica', 'bold'); setC('#737373');
+    txt(t.label, tx + 4, p2y + 5);
+    pdf.setFontSize(17); pdf.setFont('helvetica', 'bold'); setC(t.color);
+    txt(t.value, tx + 4, p2y + 13);
+    pdf.setFontSize(6.6); pdf.setFont('helvetica', 'normal'); setC('#737373');
+    txt(t.sub, tx + 4, p2y + 17.5);
+  });
+  p2y += tH + 9;
+
+  // ---- POSSESSION BATTLES (left) + SHOT FUNNEL (right) ----
+  const half = (CW - 8) / 2;
+  const lX = M, rX = M + half + 8;
+  const secTop = p2y;
+
+  pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); setC('#F7C414');
+  txt('POSSESSION BATTLES', lX, secTop + 4);
+  hline(lX, secTop + 5.5, lX + half, '#F7C414', 0.3);
+  let pby = secTop + 13;
+  function battleBar(label, ua, opp, oppLabel) {
+    const total = ua + opp, barW = half, barH = 6;
+    pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); setC('#404040');
+    txt(label, lX, pby - 1.8);
+    pdf.setFontSize(8); pdf.setFont('helvetica', 'normal'); setC('#737373');
+    txt(total ? Math.round(100 * ua / total) + '%' : '—', lX + barW, pby - 1.8, { align: 'right' });
+    setF('#e9e9e9'); pdf.roundedRect(lX, pby, barW, barH, 1, 1, 'F');
+    const uaW = total ? barW * ua / total : 0;
+    if (uaW > 0) { setF('#F7C414'); pdf.roundedRect(lX, pby, Math.max(uaW, 2), barH, 1, 1, 'F'); }
+    pdf.setFontSize(7.5); pdf.setFont('helvetica', 'bold');
+    if (uaW > 7) { setC('#1a1a1a'); txt(String(ua), lX + 2, pby + barH - 1.7); }
+    setC('#737373'); txt(opp + ' ' + oppLabel, lX + barW - 2, pby + barH - 1.7, { align: 'right' });
+    pby += barH + 6.5;
+  }
+  battleBar('Draw Controls', tot.dc, tot.dlost, 'lost');
+  battleBar('Ground Balls', tot.gb, tot.mgb, 'missed');
+  battleBar('Turnovers', tot.ct, tot.to, 'committed');
+
+  pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); setC('#F7C414');
+  txt('SHOT FUNNEL', rX, secTop + 4);
+  hline(rX, secTop + 5.5, rX + half, '#F7C414', 0.3);
+  let sfy = secTop + 13;
+  const funnel = [
+    { label: 'Shots',   val: tot.totalShots, color: '#79c0ff' },
+    { label: 'On Goal', val: tot.onGoal,     color: '#0969da' },
+    { label: 'Goals',   val: tot.goal,       color: '#1a7f37' }
+  ];
+  const fMax = Math.max(1, tot.totalShots);
+  funnel.forEach(function (f) {
+    const barH = 6, fullW = half;
+    pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); setC('#404040');
+    txt(f.label, rX, sfy - 1.8);
+    setF('#eef2f6'); pdf.roundedRect(rX, sfy, fullW, barH, 1, 1, 'F');
+    const w = fullW * f.val / fMax;
+    if (w > 0) { setF(f.color); pdf.roundedRect(rX, sfy, Math.max(w, 2), barH, 1, 1, 'F'); }
+    pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); setC('#1a1a1a');
+    txt(String(f.val), rX + fullW - 2, sfy + barH - 1.6, { align: 'right' });
+    sfy += barH + 6.5;
+  });
+  pdf.setFontSize(7.5); pdf.setFont('helvetica', 'normal'); setC('#737373');
+  const convSOG = tot.totalShots ? Math.round(100 * tot.onGoal / tot.totalShots) : 0;
+  const convG = tot.totalShots ? Math.round(100 * tot.goal / tot.totalShots) : 0;
+  txt(convSOG + '% on goal · ' + convG + '% finished', rX, sfy + 0.5);
+
+  p2y = Math.max(pby, sfy) + 5;
+  hline(M, p2y, M + CW, '#e5e5e5', 0.3);
+  p2y += 7;
+
+  // ---- LEADERBOARDS (3 columns) ----
+  const lbGap = 8, lbW = (CW - 2 * lbGap) / 3;
+  const lbX = [M, M + lbW + lbGap, M + 2 * (lbW + lbGap)];
+  const lbTop = p2y;
+  function leaderboard(colIdx, title, metric, suffix) {
+    const x = lbX[colIdx];
+    pdf.setFontSize(9.5); pdf.setFont('helvetica', 'bold'); setC('#F7C414');
+    txt(title, x, lbTop + 4);
+    hline(x, lbTop + 5.5, x + lbW, '#F7C414', 0.3);
+    const arr = rows.filter(function (r) { return (r[metric] || 0) > 0; })
+                    .sort(function (a, b) { return (b[metric] || 0) - (a[metric] || 0); })
+                    .slice(0, 5);
+    let ly2 = lbTop + 12;
+    if (arr.length === 0) {
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'italic'); setC('#737373');
+      txt('No data', x, ly2); return;
+    }
+    const maxV = arr[0][metric] || 1;
+    arr.forEach(function (r) {
+      const v = r[metric] || 0;
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); setC('#1a1a1a');
+      let nm = '#' + (r.jersey != null ? r.jersey : '') + ' ' + lastName(r.name);
+      if (nm.length > 16) nm = nm.slice(0, 15) + '…';
+      txt(nm, x, ly2);
+      pdf.setFont('helvetica', 'bold'); setC('#404040');
+      txt(v + suffix, x + lbW, ly2, { align: 'right' });
+      const barY = ly2 + 1.3, barH = 2.2;
+      setF('#eef2f6'); pdf.rect(x, barY, lbW, barH, 'F');
+      setF('#F7C414'); pdf.rect(x, barY, Math.max(lbW * v / maxV, 1), barH, 'F');
+      ly2 += 8;
+    });
+  }
+  leaderboard(0, 'TOP SCORERS', 'g', 'G');
+  leaderboard(1, 'GROUND BALLS', 'gb', '');
+  leaderboard(2, 'DRAW CONTROLS', 'dc', '');
+  p2y = lbTop + 12 + 5 * 8 + 2;
+  hline(M, p2y, M + CW, '#e5e5e5', 0.3);
+  p2y += 7;
+
+  // ---- GAME TAKEAWAYS ----
+  pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); setC('#F7C414');
+  txt('GAME TAKEAWAYS', M, p2y + 4);
+  hline(M, p2y + 5.5, M + CW, '#F7C414', 0.3);
+  let ty = p2y + 12;
+  const takeaways = computeCoachTakeaways(tot);
+  if (takeaways.length === 0) {
+    pdf.setFontSize(9); pdf.setFont('helvetica', 'italic'); setC('#737373');
+    txt('Not enough data yet to surface insights.', M, ty);
+  } else {
+    takeaways.slice(0, 6).forEach(function (it) {
+      const mark = it.tone === 'positive' ? '+' : (it.tone === 'negative' ? '!' : '-');
+      const mColor = it.tone === 'positive' ? '#22863a' : (it.tone === 'negative' ? '#cb2431' : '#737373');
+      pdf.setFontSize(11); pdf.setFont('helvetica', 'bold'); setC(mColor);
+      txt(mark, M + 1, ty);
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); setC('#1a1a1a');
+      const lines = pdf.splitTextToSize(it.text, CW - 9);
+      txt(lines, M + 6, ty);
+      ty += lines.length * 4.2 + 2.6;
+    });
+  }
+
+  // ---- Page 2 footer ----
+  pdf.setFontSize(8); pdf.setFont('helvetica', 'normal'); setC('#737373');
+  hline(M, PH - 10, M + CW, '#e5e5e5', 0.3);
+  txt('UA Girls Lacrosse · Coach Report · ' + (dateStr || ''), M, PH - 6);
+  txt('Page 2 of 2', PW - M, PH - 6, { align: 'right' });
 
   // Build a safe filename: UA_vs_Springboro_2026-05-28.pdf
   const oppSafe = (oppName || 'OPP').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
