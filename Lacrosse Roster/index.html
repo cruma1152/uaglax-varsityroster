@@ -2248,6 +2248,12 @@
                 <span>Send Updates</span>
                 <span class="bracket-admin-count" id="bracketAdminCount" hidden>0</span>
             </button>
+            <button type="button" class="bracket-admin-btn" id="btnBackup" title="Download a .zip of all data as CSVs">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M8 2v8m0 0L5 7m3 3l3-3M3 13h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span id="btnBackupLabel">Backup</span>
+            </button>
         </div>
 
         <div id="bracketBody">
@@ -3736,9 +3742,43 @@ document.addEventListener('DOMContentLoaded', () => {
     const PIN_KEY_SHARED = 'uaglax_score_pin_v1';
     const PENDING_GET_URL  = 'https://vh-api.charles-9e5.workers.dev/lacrosse/pending-updates';
     const PENDING_SEND_URL = 'https://vh-api.charles-9e5.workers.dev/lacrosse/send-pending-updates';
+    const BACKUP_URL       = 'https://vh-api.charles-9e5.workers.dev/lacrosse/backup';
 
     function readPin() {
         try { return localStorage.getItem(PIN_KEY_SHARED) || ''; } catch (_) { return ''; }
+    }
+
+    // Download a full-base backup (.zip of CSVs) via the PIN-gated worker
+    // endpoint. The browser saves the file to its normal Downloads folder.
+    async function downloadBackup() {
+        const btn = document.getElementById('btnBackup');
+        const label = document.getElementById('btnBackupLabel');
+        const pin = readPin();
+        if (!pin) { bracketToast('Unlock with your PIN first.', true); return; }
+        if (btn) btn.disabled = true;
+        const original = label ? label.textContent : 'Backup';
+        if (label) label.textContent = 'Building…';
+        try {
+            const res = await fetch(BACKUP_URL, { headers: { 'X-UAGLAX-PIN': pin } });
+            if (res.status === 401) { bracketToast('PIN no longer valid — unlock again.', true); return; }
+            if (!res.ok) { bracketToast('Backup failed (' + res.status + ').', true); return; }
+            const blob = await res.blob();
+            let fname = 'uaglax-backup-' + new Date().toISOString().slice(0, 10) + '.zip';
+            const cd = res.headers.get('Content-Disposition') || '';
+            const m = cd.match(/filename="?([^"]+)"?/);
+            if (m) fname = m[1];
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = fname;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+            bracketToast('Backup downloaded (' + Math.max(1, Math.round(blob.size / 1024)) + ' KB).', false);
+        } catch (e) {
+            bracketToast('Network error — try again.', true);
+        } finally {
+            if (btn) btn.disabled = false;
+            if (label) label.textContent = original;
+        }
     }
     function bracketToast(msg, isError) {
         let t = document.getElementById('bracketToast');
@@ -3948,6 +3988,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         btn.addEventListener('click', openSendModal);
+        const backupBtn = document.getElementById('btnBackup');
+        if (backupBtn) backupBtn.addEventListener('click', downloadBackup);
         cancelBtn.addEventListener('click', closeSendModal);
         confirmBtn.addEventListener('click', confirmSend);
         // Close on backdrop click
