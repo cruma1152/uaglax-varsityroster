@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>UAGLAX Roster Manager</title>
+<style>
+  *,*:before,*:after { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html,body { min-height:100%; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  body { background:#0d1117; color:#e6edf3; font-size:16px; min-height:100vh; }
+  button,input,select,textarea { font-family:inherit; }
+  button { cursor:pointer; border:0; }
+  a { color:#7d8590; text-decoration:none; }
+
+  .wrap { max-width:880px; margin:0 auto; padding:20px 16px 60px; }
+
+  /* PIN gate */
+  #gate { max-width:420px; margin:8vh auto 0; background:#161b22; border:1px solid #30363d; border-radius:14px; padding:24px 22px; }
+  #gate h1 { font-size:21px; color:#F7C414; margin-bottom:4px; }
+  #gate .sub { color:#7d8590; font-size:13px; margin-bottom:20px; }
+  #gate label { display:block; font-size:12px; color:#8b949e; margin-bottom:8px; font-weight:600; letter-spacing:.4px; }
+  #pin { width:100%; background:#0d1117; border:1px solid #30363d; border-radius:10px; color:#e6edf3; font-size:20px; padding:13px 15px; letter-spacing:4px; text-align:center; }
+  #pin:focus { outline:none; border-color:#F7C414; }
+  #gate-status { margin-top:12px; font-size:13px; color:#f85149; display:none; }
+
+  .hide { display:none !important; }
+
+  /* Header */
+  header.bar { display:flex; align-items:center; gap:12px; margin-bottom:6px; flex-wrap:wrap; }
+  header.bar h1 { font-size:22px; color:#F7C414; flex:1; min-width:160px; }
+  .count { font-size:13px; color:#7d8590; }
+  .btn { padding:11px 16px; border-radius:9px; font-size:14px; font-weight:700; letter-spacing:.3px; transition:transform .06s, background .12s, opacity .12s; }
+  .btn:active { transform:scale(.97); }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .btn-primary { background:#F7C414; color:#0d1117; }
+  .btn-ghost { background:#21262d; color:#c9d1d9; border:1px solid #30363d; }
+  .btn-sm { padding:7px 11px; font-size:13px; border-radius:8px; }
+
+  .toolbar { display:flex; align-items:center; gap:10px; margin:14px 0 10px; flex-wrap:wrap; }
+  .toolbar .spacer { flex:1; }
+  .chk { display:inline-flex; align-items:center; gap:7px; font-size:13px; color:#8b949e; cursor:pointer; }
+  .chk input { width:16px; height:16px; accent-color:#F7C414; }
+
+  /* Table */
+  .tablewrap { background:#161b22; border:1px solid #30363d; border-radius:12px; overflow:hidden; }
+  table { width:100%; border-collapse:collapse; }
+  th,td { text-align:left; padding:11px 12px; font-size:14px; border-bottom:1px solid #21262d; }
+  th { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#7d8590; font-weight:700; background:#0d1117; }
+  tr:last-child td { border-bottom:0; }
+  td.jersey { font-family:'SF Mono','Menlo',monospace; font-weight:700; color:#F7C414; width:42px; }
+  td.name { font-weight:600; }
+  .pos-pill { font-size:11px; padding:2px 8px; border-radius:20px; background:#21262d; color:#c9d1d9; }
+  .pos-Attack { background:#f8514922; color:#ff7b72; }
+  .pos-Midfield { background:#d2992222; color:#e3b341; }
+  .pos-Defense { background:#388bfd22; color:#79c0ff; }
+  .pos-Goalie { background:#3fb95022; color:#56d364; }
+  .cap { color:#F7C414; font-weight:800; }
+  tr.inactive td { opacity:.45; }
+  .act-toggle { font-size:11px; font-weight:700; padding:4px 9px; border-radius:20px; border:1px solid transparent; }
+  .act-on { background:#3fb95018; color:#56d364; border-color:#3fb95040; }
+  .act-off { background:#6e768122; color:#8b949e; border-color:#30363d; }
+  td.actions { text-align:right; white-space:nowrap; }
+
+  .empty { padding:28px; text-align:center; color:#7d8590; font-size:14px; }
+
+  /* Toast */
+  #toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px); background:#21262d; color:#e6edf3; border:1px solid #30363d; padding:12px 18px; border-radius:10px; font-size:14px; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:60; max-width:90vw; }
+  #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  #toast.ok { border-color:#3fb95060; } #toast.err { border-color:#f8514960; color:#ffa198; }
+
+  /* Editor modal */
+  .modal { position:fixed; inset:0; background:rgba(1,4,9,.7); display:none; align-items:flex-end; justify-content:center; z-index:50; padding:0; }
+  .modal.show { display:flex; }
+  @media (min-width:560px){ .modal { align-items:center; padding:20px; } }
+  .card { background:#161b22; border:1px solid #30363d; width:100%; max-width:480px; border-radius:16px 16px 0 0; padding:22px 20px calc(22px + env(safe-area-inset-bottom)); max-height:92vh; overflow-y:auto; }
+  @media (min-width:560px){ .card { border-radius:16px; } }
+  .card h2 { font-size:18px; color:#F7C414; margin-bottom:16px; }
+  .field { margin-bottom:14px; }
+  .field label { display:block; font-size:12px; color:#8b949e; margin-bottom:6px; font-weight:600; letter-spacing:.3px; }
+  .field input[type=text], .field input[type=number], .field select, .field textarea {
+    width:100%; background:#0d1117; border:1px solid #30363d; border-radius:9px; color:#e6edf3; font-size:16px; padding:11px 13px;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus { outline:none; border-color:#F7C414; }
+  .field textarea { resize:vertical; min-height:60px; }
+  .field-row { display:flex; gap:12px; }
+  .field-row .field { flex:1; }
+  .switches { display:flex; gap:20px; margin:4px 0 16px; }
+  .switch { display:flex; align-items:center; gap:8px; font-size:14px; color:#c9d1d9; cursor:pointer; }
+  .switch input { width:18px; height:18px; accent-color:#F7C414; }
+  .modal-actions { display:flex; gap:10px; margin-top:8px; }
+  .modal-actions .btn { flex:1; }
+  #editor-error { color:#f85149; font-size:13px; margin-bottom:10px; display:none; }
+  .spinner { display:inline-block; width:13px; height:13px; border:2px solid currentColor; border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px; margin-right:7px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .footer { text-align:center; margin-top:22px; font-size:12px; }
+</style>
+</head>
+<body>
+
+<!-- PIN gate -->
+<div id="gate" class="hide">
+  <h1>Roster Manager</h1>
+  <div class="sub">Enter your PIN to manage the team roster.</div>
+  <label for="pin">PIN</label>
+  <input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="••••">
+  <button id="unlock" class="btn btn-primary" style="width:100%;margin-top:16px;">Unlock</button>
+  <div id="gate-status"></div>
+</div>
+
+<!-- Main app -->
+<div id="app" class="wrap hide">
+  <header class="bar">
+    <h1>Roster <span class="count" id="count"></span></h1>
+    <button id="addBtn" class="btn btn-primary">+ Add Player</button>
+  </header>
+  <div class="toolbar">
+    <label class="chk"><input type="checkbox" id="showInactive"> Show inactive</label>
+    <span class="spacer"></span>
+    <button id="refreshBtn" class="btn btn-ghost btn-sm">Refresh</button>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Player</th><th>Pos</th><th>Grade</th><th>Capt</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody id="rows"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="footer"><a href="./">← UAGLAX home</a></div>
+</div>
+
+<!-- Editor modal -->
+<div class="modal" id="editor">
+  <div class="card">
+    <h2 id="editor-title">Add Player</h2>
+    <div id="editor-error"></div>
+    <div class="field">
+      <label for="f-name">Player Name</label>
+      <input type="text" id="f-name" autocomplete="off" placeholder="First Last">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="f-jersey">Jersey #</label>
+        <input type="number" id="f-jersey" inputmode="numeric" min="0" max="99" placeholder="—">
+      </div>
+      <div class="field">
+        <label for="f-pos">Position</label>
+        <select id="f-pos">
+          <option value="">—</option>
+          <option>Attack</option><option>Midfield</option><option>Defense</option><option>Goalie</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-grade">Grade</label>
+        <select id="f-grade">
+          <option value="">—</option>
+          <option>Freshman</option><option>Sophomore</option><option>Junior</option><option>Senior</option>
+        </select>
+      </div>
+    </div>
+    <div class="switches">
+      <label class="switch"><input type="checkbox" id="f-captain"> Captain</label>
+      <label class="switch"><input type="checkbox" id="f-active" checked> Active</label>
+    </div>
+    <div class="field">
+      <label for="f-notes">Notes</label>
+      <textarea id="f-notes" placeholder="Optional"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button id="cancelBtn" class="btn btn-ghost">Cancel</button>
+      <button id="saveBtn" class="btn btn-primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  var API = 'https://vh-api.charles-9e5.workers.dev';
+  var $ = function (id) { return document.getElementById(id); };
+  var players = [];
+  var editingId = null;          // recordId being edited, or null for new
+
+  function getPin() { try { return localStorage.getItem('uaglaxPin') || ''; } catch (e) { return ''; } }
+  function setPin(p) { try { localStorage.setItem('uaglaxPin', p); } catch (e) {} }
+  function clearPin() { try { localStorage.removeItem('uaglaxPin'); } catch (e) {} }
+  function headers(extra) { var h = { 'X-UAGLAX-PIN': getPin() }; if (extra) for (var k in extra) h[k] = extra[k]; return h; }
+
+  var toastTimer;
+  function toast(msg, kind) {
+    var t = $('toast'); t.textContent = msg; t.className = 'show ' + (kind || '');
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.className = ''; }, 2600);
+  }
+
+  function showGate() { $('app').classList.add('hide'); $('gate').classList.remove('hide'); $('pin').value = ''; setTimeout(function(){ $('pin').focus(); }, 80); }
+  function showApp() { $('gate').classList.add('hide'); $('app').classList.remove('hide'); loadRoster(); }
+
+  async function verify(pin) {
+    var res = await fetch(API + '/lacrosse/stats/verify', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-UAGLAX-PIN': pin }, body: '{}' });
+    return res.ok;
+  }
+
+  $('unlock').addEventListener('click', async function () {
+    var pin = ($('pin').value || '').trim();
+    $('gate-status').style.display = 'none';
+    if (!pin) return;
+    this.disabled = true; this.textContent = 'Checking…';
+    try {
+      if (await verify(pin)) { setPin(pin); showApp(); }
+      else { $('gate-status').textContent = 'Incorrect PIN.'; $('gate-status').style.display = 'block'; }
+    } catch (e) { $('gate-status').textContent = 'Network error — try again.'; $('gate-status').style.display = 'block'; }
+    this.disabled = false; this.textContent = 'Unlock';
+  });
+  $('pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('unlock').click(); });
+
+  // ---- Load + render ----
+  async function loadRoster() {
+    $('rows').innerHTML = '<tr><td colspan="7" class="empty">Loading…</td></tr>';
+    try {
+      var res = await fetch(API + '/lacrosse/roster', { headers: headers(), cache: 'no-store' });
+      if (res.status === 401) { clearPin(); showGate(); return; }
+      if (!res.ok) { $('rows').innerHTML = '<tr><td colspan="7" class="empty">Failed to load (' + res.status + ')</td></tr>'; return; }
+      var data = await res.json();
+      players = data.players || [];
+      render();
+    } catch (e) {
+      $('rows').innerHTML = '<tr><td colspan="7" class="empty">Network error.</td></tr>';
+    }
+  }
+
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function render() {
+    var showInactive = $('showInactive').checked;
+    var list = players.filter(function (p) { return showInactive || p.active; });
+    var activeCount = players.filter(function (p) { return p.active; }).length;
+    $('count').textContent = '· ' + activeCount + ' active' + (players.length > activeCount ? ' / ' + players.length + ' total' : '');
+    if (list.length === 0) { $('rows').innerHTML = '<tr><td colspan="7" class="empty">No players' + (showInactive ? '' : ' — try “Show inactive”') + '.</td></tr>'; return; }
+    $('rows').innerHTML = list.map(function (p) {
+      var posCls = p.position ? 'pos-' + p.position : '';
+      return '<tr class="' + (p.active ? '' : 'inactive') + '" data-id="' + p.recordId + '">' +
+        '<td class="jersey">' + (p.jersey != null ? p.jersey : '–') + '</td>' +
+        '<td class="name">' + esc(p.playerName) + '</td>' +
+        '<td>' + (p.position ? '<span class="pos-pill ' + posCls + '">' + esc(p.position) + '</span>' : '') + '</td>' +
+        '<td>' + esc(p.grade || '') + '</td>' +
+        '<td>' + (p.captain ? '<span class="cap">C</span>' : '') + '</td>' +
+        '<td><button class="act-toggle ' + (p.active ? 'act-on' : 'act-off') + '" data-act="' + p.recordId + '">' + (p.active ? 'Active' : 'Inactive') + '</button></td>' +
+        '<td class="actions"><button class="btn btn-ghost btn-sm" data-edit="' + p.recordId + '">Edit</button></td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  // Event delegation for edit + active toggle
+  $('rows').addEventListener('click', function (e) {
+    var ed = e.target.closest('[data-edit]'); if (ed) { openEditor(ed.getAttribute('data-edit')); return; }
+    var ac = e.target.closest('[data-act]'); if (ac) { toggleActive(ac.getAttribute('data-act')); return; }
+  });
+  $('showInactive').addEventListener('change', render);
+  $('refreshBtn').addEventListener('click', loadRoster);
+
+  async function toggleActive(id) {
+    var p = players.find(function (x) { return x.recordId === id; }); if (!p) return;
+    var next = !p.active;
+    try {
+      var res = await fetch(API + '/lacrosse/roster/' + id, { method: 'PATCH', headers: headers({ 'Content-Type': 'application/json' }), body: JSON.stringify({ active: next }) });
+      if (res.status === 401) { clearPin(); showGate(); return; }
+      var data = await res.json();
+      if (!res.ok) { toast(data.error || 'Update failed', 'err'); return; }
+      p.active = data.player.active; render();
+      toast(p.playerName + (next ? ' set active' : ' archived'), 'ok');
+    } catch (e) { toast('Network error', 'err'); }
+  }
+
+  // ---- Editor ----
+  function openEditor(id) {
+    editingId = id || null;
+    $('editor-error').style.display = 'none';
+    var p = id ? players.find(function (x) { return x.recordId === id; }) : null;
+    $('editor-title').textContent = p ? 'Edit Player' : 'Add Player';
+    $('f-name').value = p ? p.playerName : '';
+    $('f-jersey').value = p && p.jersey != null ? p.jersey : '';
+    $('f-pos').value = p ? (p.position || '') : '';
+    $('f-grade').value = p ? (p.grade || '') : '';
+    $('f-captain').checked = p ? !!p.captain : false;
+    $('f-active').checked = p ? !!p.active : true;
+    $('f-notes').value = p ? (p.notes || '') : '';
+    $('editor').classList.add('show');
+    setTimeout(function () { $('f-name').focus(); }, 80);
+  }
+  function closeEditor() { $('editor').classList.remove('show'); }
+
+  $('addBtn').addEventListener('click', function () { openEditor(null); });
+  $('cancelBtn').addEventListener('click', closeEditor);
+  $('editor').addEventListener('click', function (e) { if (e.target === $('editor')) closeEditor(); });
+
+  $('saveBtn').addEventListener('click', async function () {
+    var name = ($('f-name').value || '').trim();
+    var errBox = $('editor-error');
+    if (!name) { errBox.textContent = 'Player name is required.'; errBox.style.display = 'block'; return; }
+    var jerseyRaw = ($('f-jersey').value || '').trim();
+    var payload = {
+      playerName: name,
+      jersey: jerseyRaw === '' ? null : Number(jerseyRaw),
+      position: $('f-pos').value || '',
+      grade: $('f-grade').value || '',
+      captain: $('f-captain').checked,
+      active: $('f-active').checked,
+      notes: ($('f-notes').value || '').trim()
+    };
+    errBox.style.display = 'none';
+    this.disabled = true; var orig = this.textContent; this.innerHTML = '<span class="spinner"></span>Saving…';
+    try {
+      var url = API + '/lacrosse/roster' + (editingId ? '/' + editingId : '');
+      var method = editingId ? 'PATCH' : 'POST';
+      var res = await fetch(url, { method: method, headers: headers({ 'Content-Type': 'application/json' }), body: JSON.stringify(payload) });
+      if (res.status === 401) { clearPin(); showGate(); return; }
+      var data = await res.json();
+      if (!res.ok) { errBox.textContent = data.error || ('Save failed (' + res.status + ')'); errBox.style.display = 'block'; return; }
+      // Update local list
+      if (editingId) {
+        var idx = players.findIndex(function (x) { return x.recordId === editingId; });
+        if (idx >= 0) players[idx] = data.player;
+      } else {
+        players.push(data.player);
+      }
+      render();
+      closeEditor();
+      toast(editingId ? 'Saved' : 'Player added', 'ok');
+    } catch (e) {
+      errBox.textContent = 'Network error — try again.'; errBox.style.display = 'block';
+    } finally {
+      this.disabled = false; this.textContent = orig;
+    }
+  });
+
+  // Boot
+  (async function () {
+    var pin = getPin();
+    if (!pin) { showGate(); return; }
+    try { if (await verify(pin)) showApp(); else { clearPin(); showGate(); } }
+    catch (e) { showApp(); }  // offline — let them try; calls will re-check
+  })();
+</script>
+</body>
+</html>
