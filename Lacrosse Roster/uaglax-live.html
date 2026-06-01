@@ -282,6 +282,7 @@
   .event-type.missed-gb         { background: #fed7aa; color: #9a3412; }
   .event-type.caused-turnover   { background: #F7C414; color: #1a1a1a; }
   .event-type.turnover          { background: #fee2e2; color: #b91c1c; }
+  .event-type.yellow-card       { background: #facc15; color: #1a1a1a; }
   .event-player {
     font-size: 14px;
     font-weight: 600;
@@ -514,7 +515,7 @@ const GAMES_INTERVAL_WAIT  = 8000;     // ms — faster poll when waiting for a
 const PIN_KEY              = 'uaglax_score_pin_v1';  // matches the stats app + roster
 
 // Events visible in PUBLIC mode. Admin mode shows everything.
-const PUBLIC_TYPES = new Set(['Goal', 'Assist', 'Save', 'Opp Goal', 'Period Start']);
+const PUBLIC_TYPES = new Set(['Goal', 'Assist', 'Save', 'Opp Goal', 'Period Start', 'Yellow Card']);
 
 // ============================================================================
 // STATE
@@ -844,8 +845,9 @@ function formatEventOneLine(e) {
   const per = qLabel(e.period);
   const clock = e.clock ? (' ' + e.clock) : '';
   if (e.statType === 'Period Start') return 'Start of ' + per;
-  const who = e.statType === 'Opp Goal'
-    ? 'OPP'
+  const isOppCard = e.statType === 'Yellow Card' && e.jersey == null && !e.playerName;
+  const who = (e.statType === 'Opp Goal' || isOppCard)
+    ? 'OPP' + (e.note ? ' ' + e.note : '')
     : (e.jersey != null ? '#' + e.jersey + ' ' + lastName(e.playerName) : (e.playerName || ''));
   return per + clock + ' · ' + e.statType.toUpperCase() + (who ? ' · ' + who : '');
 }
@@ -957,6 +959,8 @@ function renderEventRow(e, isNew) {
   let who = '';
   if (e.statType === 'Opp Goal') {
     who = '<span class="event-player opp">Opponent</span>';
+  } else if (e.statType === 'Yellow Card' && e.jersey == null && !e.playerName) {
+    who = '<span class="event-player opp">Opponent' + (e.note ? ' ' + escapeHtml(e.note) : '') + '</span>';
   } else if (e.statType === 'Missed GB' || e.statType === 'Draw Lost') {
     who = '<span class="event-player opp">Team</span>';
   } else if (e.jersey != null || e.playerName) {

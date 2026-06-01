@@ -157,6 +157,9 @@
   .stat-btn.mgb    { background:#fed7aa; border-color:#fb923c; color:#9a3412; }
   .stat-btn.ct     { background:#F7C414; border-color:#F7C414; color:#1a1a1a; }
   .stat-btn.to     { background:#fee2e2; border-color:#fca5a5; color:#b91c1c; }
+  /* Full-width yellow card button — spans all 6 columns as a row beneath the grid */
+  .stat-btn.yellowcard { grid-column: 1 / -1; background:#facc15; border-color:#eab308; color:#1a1a1a; letter-spacing:1px; }
+  .stat-btn.yellowcard:active { transform:scale(.99); }
   /* Sub-label text under the big button name (e.g., "shot on goal" under SOG).
      Inherits the button's color but at lower opacity so it's a secondary read. */
   .stat-btn small { opacity: 0.7; }
@@ -548,6 +551,27 @@
   #oppmodal .cancel { background:#21262d; color:#c9d1d9; border:1px solid #30363d; }
   #oppmodal .confirm { background:#F7C414; color:#0d1117; }
 
+  /* Yellow-card team chooser modal */
+  #cardteammodal { position:fixed; inset:0; background:rgba(0,0,0,.8); display:none; align-items:center; justify-content:center; z-index:130; }
+  #cardteammodal.show { display:flex; }
+  #cardteammodal .pin-card { background:#161b22; border:1px solid #30363d; border-radius:14px; padding:24px; max-width:360px; width:92%; text-align:center; }
+  #cardteammodal h3 { font-size:20px; margin-bottom:6px; color:#facc15; }
+  #cardteammodal p { font-size:13px; color:#8b949e; margin-bottom:16px; }
+  #cardteammodal .card-team-actions { display:flex; flex-direction:column; gap:10px; }
+  #cardteammodal .card-team-actions button { padding:16px; border-radius:10px; font-size:16px; font-weight:700; letter-spacing:.5px; border:1px solid #30363d; cursor:pointer; }
+  #cardteammodal .card-ua { background:#F7C414; color:#0d1117; border-color:#F7C414; }
+  #cardteammodal .card-opp { background:#21262d; color:#e6edf3; }
+  #cardteammodal .card-cancel { background:transparent; color:#8b949e; border:0; margin-top:4px; font-size:14px; padding:8px; }
+
+  /* Yellow-card tally on the Summary tab */
+  #cards-summary { margin: 0 24px 18px; }
+  #cards-summary h2 { font-size:13px; color:#7d8590; text-transform:uppercase; letter-spacing:1.4px; margin-bottom:12px; }
+  .cards-row { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+  .cards-tile { background:#161b22; border:1px solid #30363d; border-left:4px solid #facc15; border-radius:12px; padding:14px 18px; }
+  .cards-label { font-size:11px; text-transform:uppercase; letter-spacing:1.2px; color:#7d8590; margin-bottom:6px; }
+  .cards-value { font-size:32px; font-weight:800; color:#facc15; line-height:1; }
+  .cards-sub { font-size:12px; color:#7d8590; margin-top:6px; min-height:14px; }
+
   /* ─── Final-game lock banner ─── */
   #final-lock-bar { display:none; align-items:center; gap:12px; padding:10px 16px; background:rgba(248,81,73,.12); border-bottom:1px solid rgba(248,81,73,.4); color:#f0b8b6; }
   #final-lock-bar.show { display:flex; }
@@ -762,6 +786,7 @@
       <button class="stat-btn to" onclick="selectStat('Turnover')">TO<small>turnover</small></button>
       <button class="stat-btn save" onclick="selectStat('Save')">SAVE<small>goalie</small></button>
       <button class="stat-btn opp" onclick="logOppGoal()">OPP GOAL</button>
+      <button class="stat-btn yellowcard" onclick="openCardTeam()">YELLOW CARD</button>
     </div>
     <div id="feed-pane">
       <div id="feed-header"><span>Live events</span><span id="event-count">0</span></div>
@@ -876,6 +901,14 @@
     <div id="takeaways">
       <h2>Coach's Takeaways</h2>
       <ul id="takeaways-list"><li class="ta-empty">No data yet — start tagging events to see insights.</li></ul>
+    </div>
+    <!-- Yellow cards tally (hidden until a card is logged) -->
+    <div id="cards-summary" style="display:none;">
+      <h2>Yellow Cards</h2>
+      <div class="cards-row">
+        <div class="cards-tile"><div class="cards-label">UA</div><div class="cards-value" id="yc-ua">0</div><div class="cards-sub" id="yc-ua-sub"></div></div>
+        <div class="cards-tile"><div class="cards-label">Opponent</div><div class="cards-value" id="yc-opp">0</div><div class="cards-sub" id="yc-opp-sub"></div></div>
+      </div>
     </div>
   </div>
 
@@ -1007,8 +1040,8 @@
      feed row. Leave blank to log a generic OPP Goal as before. -->
 <div id="oppmodal">
   <div class="pin-card">
-    <h3>Opp Goal</h3>
-    <p>Opposing player's jersey? (Optional)</p>
+    <h3 id="opp-modal-title">Opp Goal</h3>
+    <p id="opp-modal-sub">Opposing player's jersey? (Optional)</p>
     <div id="opp-display" class="placeholder">##</div>
     <div id="opp-keypad">
       <button type="button" onclick="oppKey('1')">1</button>
@@ -1026,7 +1059,21 @@
     </div>
     <div class="pin-actions">
       <button class="cancel" onclick="cancelOppGoal()">Cancel</button>
-      <button class="confirm" onclick="submitOppGoal()">Log Goal</button>
+      <button class="confirm" id="opp-confirm-btn" onclick="submitOppGoal()">Log Goal</button>
+    </div>
+  </div>
+</div>
+
+<!-- Yellow card: choose which team got the card. UA -> player picker;
+     Opponent -> the opp numeric keypad (number stored in the note). -->
+<div id="cardteammodal">
+  <div class="pin-card">
+    <h3>Yellow Card</h3>
+    <p>Which team got the card?</p>
+    <div class="card-team-actions">
+      <button type="button" class="card-ua" onclick="cardTeam('UA')">UPPER ARLINGTON</button>
+      <button type="button" class="card-opp" onclick="cardTeam('OPP')">OPPONENT</button>
+      <button type="button" class="card-cancel" onclick="closeCardTeam()">Cancel</button>
     </div>
   </div>
 </div>
@@ -1604,7 +1651,27 @@ function logOppGoal() {
   if (state.locked) { toast('Unlock to enter stats'); return; }
   if (!state.game) return;
   if (state.finalLock && !state.adminPin) { toast('Game is final — admin override required'); openAdminOverride(); return; }
-  openOppModal();
+  openOppModal('Opp Goal');
+}
+
+// ----- Yellow card flow -----
+// Long yellow button -> choose team. UA card goes through the normal player
+// picker; an opponent card reuses the opp numeric keypad (number -> note).
+function openCardTeam() {
+  if (state.locked) { toast('Unlock to enter stats'); return; }
+  if (!state.game) return;
+  if (state.finalLock && !state.adminPin) { toast('Game is final — admin override required'); openAdminOverride(); return; }
+  const m = document.getElementById('cardteammodal');
+  if (m) m.classList.add('show');
+}
+function closeCardTeam() {
+  const m = document.getElementById('cardteammodal');
+  if (m) m.classList.remove('show');
+}
+function cardTeam(which) {
+  closeCardTeam();
+  if (which === 'UA') selectStat('Yellow Card');   // opens player picker
+  else openOppModal('Yellow Card');                 // opponent number keypad
 }
 
 // Opp Goal jersey prompt — lets the keeper optionally tag the opposing
@@ -1612,6 +1679,7 @@ function logOppGoal() {
 // in the feed row. Blank = generic Opp Goal as before. Uses an in-modal
 // numeric keypad so it works on iPad without depending on the soft keyboard.
 let _oppValue = '';
+let _oppStatType = 'Opp Goal';   // what the keypad modal will log (Opp Goal or Yellow Card)
 function _refreshOppDisplay() {
   const d = document.getElementById('opp-display');
   if (!d) return;
@@ -1636,9 +1704,17 @@ function oppKeyClear() {
   _oppValue = '';
   _refreshOppDisplay();
 }
-function openOppModal() {
+function openOppModal(statType) {
+  _oppStatType = statType || 'Opp Goal';
   _oppValue = '';
   _refreshOppDisplay();
+  const isCard = _oppStatType === 'Yellow Card';
+  const t = document.getElementById('opp-modal-title');
+  const s = document.getElementById('opp-modal-sub');
+  const b = document.getElementById('opp-confirm-btn');
+  if (t) t.textContent = isCard ? 'Opponent Yellow Card' : 'Opp Goal';
+  if (s) s.textContent = isCard ? "Opposing player's number? (Optional)" : "Opposing player's jersey? (Optional)";
+  if (b) b.textContent = isCard ? 'Log Card' : 'Log Goal';
   const m = document.getElementById('oppmodal');
   if (m) m.classList.add('show');
 }
@@ -1651,7 +1727,7 @@ function submitOppGoal() {
   const jersey = (_oppValue || '').replace(/\D+/g, '').slice(0, 3);
   const note = jersey ? '#' + jersey : '';
   cancelOppGoal();
-  logEvent({ statType: 'Opp Goal', playerId: null, note: note });
+  logEvent({ statType: _oppStatType, playerId: null, note: note });
 }
 
 function logTeamStat(statType) {
@@ -2153,7 +2229,7 @@ function filteredEvents() {
 // ============================================================================
 function aggregate(eventList) {
   const ev = eventList || filteredEvents();
-  const totals = { goal:0, assist:0, shot:0, sog:0, gb:0, mgb:0, dc:0, dlost:0, ct:0, to:0, save:0, oppGoal:0 };
+  const totals = { goal:0, assist:0, shot:0, sog:0, gb:0, mgb:0, dc:0, dlost:0, ct:0, to:0, save:0, oppGoal:0, ycUA:0, ycOpp:0 };
   const byPlayer = new Map();
   let lastPeriod = 1;
   state.events.forEach(function (e) { if (e.period && e.period > lastPeriod) lastPeriod = e.period; });
@@ -2171,6 +2247,7 @@ function aggregate(eventList) {
     else if (t === 'Turnover') totals.to++;
     else if (t === 'Save') totals.save++;
     else if (t === 'Opp Goal') totals.oppGoal++;
+    else if (t === 'Yellow Card') { if (e.playerId) totals.ycUA++; else totals.ycOpp++; }
 
     if (e.playerId && t !== 'Opp Goal' && t !== 'Missed GB' && t !== 'Draw Lost') {
       let p = byPlayer.get(e.playerId);
@@ -2181,7 +2258,7 @@ function aggregate(eventList) {
           const r = state.roster.find(function (x) { return x.recordId === e.playerId; });
           meta = r ? { name: r.name, jersey: r.jersey, position: r.position } : { name:'(unknown)', jersey:null, position:'' };
         }
-        p = { meta, goal:0, assist:0, shot:0, sog:0, gb:0, dc:0, ct:0, to:0, save:0 };
+        p = { meta, goal:0, assist:0, shot:0, sog:0, gb:0, dc:0, ct:0, to:0, save:0, yc:0 };
         byPlayer.set(e.playerId, p);
       }
       if (t === 'Goal') p.goal++;
@@ -2193,6 +2270,7 @@ function aggregate(eventList) {
       else if (t === 'Caused Turnover') p.ct++;
       else if (t === 'Turnover') p.to++;
       else if (t === 'Save') p.save++;
+      else if (t === 'Yellow Card') p.yc++;
     }
   });
   const totalShots = totals.shot + totals.sog + totals.goal;
@@ -2247,7 +2325,7 @@ function renderFeed() {
     else if (!e._synced) cls += ' queued';
     const clock = qLabel(e.period || 1);
     let player;
-    if (e.statType === 'Opp Goal') player = e.note ? 'OPP ' + e.note : 'OPP';
+    if (e.statType === 'Opp Goal' || (e.statType === 'Yellow Card' && !e.playerId)) player = e.note ? 'OPP ' + e.note : 'OPP';
     else if (e.statType === 'Missed GB' || e.statType === 'Draw Lost') player = '—';
     else if (e.playerName) player = (e.jersey ? '#' + e.jersey + ' ' : '') + (e.playerName.split(' ').pop() || '');
     else if (e.playerId) {
@@ -2351,7 +2429,30 @@ function renderSummary() {
   renderGoalsByQuarter();
   renderShootingByHalf();
   renderCoachTakeaways(totals);
+  renderCardsSummary(totals);
   renderTimeline();
+}
+
+// Yellow-card tally on the Summary tab. Hidden entirely until a card exists.
+function renderCardsSummary(totals) {
+  const el = $('cards-summary');
+  if (!el) return;
+  const ua = totals.ycUA || 0, opp = totals.ycOpp || 0;
+  if (ua + opp === 0) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  $('yc-ua').textContent = ua;
+  $('yc-opp').textContent = opp;
+  const uaNames = state.events
+    .filter(function (e) { return e.statType === 'Yellow Card' && e.playerId; })
+    .map(function (e) {
+      const p = state.roster.find(function (x) { return x.recordId === e.playerId; });
+      return p ? '#' + (p.jersey != null ? p.jersey : '') + ' ' + (p.name.split(' ').pop() || '') : '';
+    }).filter(Boolean);
+  const oppNums = state.events
+    .filter(function (e) { return e.statType === 'Yellow Card' && !e.playerId; })
+    .map(function (e) { return e.note || 'OPP'; });
+  $('yc-ua-sub').textContent = uaNames.join(', ');
+  $('yc-opp-sub').textContent = oppNums.join(', ');
 }
 
 // ----- Goals by Quarter -----
@@ -3068,6 +3169,23 @@ function buildCoachReportPDF() {
       txt(lines, M + 6, ty);
       ty += lines.length * 4.2 + 2.6;
     });
+  }
+
+  // ---- Penalties (yellow cards), only if any ----
+  if (((tot.ycUA || 0) + (tot.ycOpp || 0)) > 0) {
+    ty += 4;
+    const uaCarded = (state.events || []).filter(function (e) { return e.statType === 'Yellow Card' && e.playerId; })
+      .map(function (e) { const p = (state.roster || []).find(function (x) { return x.recordId === e.playerId; }); return p ? '#' + (p.jersey != null ? p.jersey : '') + ' ' + lastName(p.name) : ''; }).filter(Boolean);
+    const oppCarded = (state.events || []).filter(function (e) { return e.statType === 'Yellow Card' && !e.playerId; })
+      .map(function (e) { return e.note || 'OPP'; });
+    pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); setC('#bf8700');
+    txt('YELLOW CARDS', M, ty + 4);
+    hline(M, ty + 5.5, M + CW, '#facc15', 0.3);
+    ty += 11;
+    pdf.setFontSize(9.5); pdf.setFont('helvetica', 'normal'); setC('#1a1a1a');
+    const pline = 'UA ' + (tot.ycUA || 0) + (uaCarded.length ? '  (' + uaCarded.join(', ') + ')' : '') +
+                  '      ·      OPP ' + (tot.ycOpp || 0) + (oppCarded.length ? '  (' + oppCarded.join(', ') + ')' : '');
+    txt(pline, M, ty);
   }
 
   // ---- Page 2 footer ----
