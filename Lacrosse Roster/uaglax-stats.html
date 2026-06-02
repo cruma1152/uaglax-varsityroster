@@ -30,6 +30,10 @@
   .game-status.live { background:#f8514920; color:#f85149; }
   .game-status.final { background:#3fb95020; color:#3fb950; }
   .game-status.upcoming { background:#21262d; color:#7d8590; }
+  .resume-row { border-color:#F7C414; background:linear-gradient(180deg,#1c1a10,#161b22); }
+  .resume-row .game-date { background:#F7C41420; color:#F7C414; font-weight:700; }
+  .resume-row .game-status.live { background:#F7C41420; color:#F7C414; }
+  .picker-offline-note { background:rgba(210,153,34,.14); border:1px solid rgba(210,153,34,.45); color:#f0d79a; border-radius:8px; padding:10px 14px; margin-bottom:10px; font-size:13px; text-align:center; }
 
   /* ─── App shell ─── */
   #app { display:none; flex-direction:column; min-height:100vh; }
@@ -583,6 +587,15 @@
   .flb-btn { padding:8px 14px; background:#f85149; color:#ffffff; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; }
   #final-lock-bar.unlocked .flb-btn { background:#3fb950; }
 
+  /* Offline / pending-upload banner */
+  #offline-bar { display:none; align-items:center; gap:12px; padding:10px 16px; background:rgba(210,153,34,.14); border-bottom:1px solid rgba(210,153,34,.45); color:#f0d79a; }
+  #offline-bar.show { display:flex; }
+  #offline-bar.synced { background:rgba(63,185,80,.10); border-bottom-color:rgba(63,185,80,.4); color:#a8e0b3; }
+  .ofb-icon { font-size:18px; line-height:1; }
+  .ofb-text { flex:1; display:flex; flex-direction:column; line-height:1.2; }
+  .ofb-text strong { font-size:13px; font-weight:700; }
+  .ofb-sub { font-size:11px; opacity:.85; }
+
   /* Toast */
   #toast { position:fixed; bottom:60px; left:50%; transform:translateX(-50%); background:#161b22; border:1px solid #30363d; padding:12px 20px; border-radius:10px; color:#e6edf3; opacity:0; transition:opacity .2s; pointer-events:none; z-index:300; }
   #toast.show { opacity:1; }
@@ -745,6 +758,16 @@
       <span class="flb-sub">Stats are read-only. Tap Override to edit.</span>
     </div>
     <button type="button" class="flb-btn" onclick="openAdminOverride()">Admin Override</button>
+  </div>
+
+  <!-- Offline / pending-upload banner. Reassures the keeper that stats are
+       being saved locally and shows how many are still waiting to upload. -->
+  <div id="offline-bar" hidden>
+    <span class="ofb-icon" aria-hidden="true">📡</span>
+    <div class="ofb-text">
+      <strong id="ofb-title">Offline</strong>
+      <span class="ofb-sub" id="ofb-sub">Stats are saving on this device.</span>
+    </div>
   </div>
 
   <!-- Tab bar -->
@@ -1182,35 +1205,87 @@ async function loadGames() {
     const res = await fetch(API_BASE + '/lacrosse/stats/games');
     const data = await res.json();
     const games = data.games || [];
-    if (!games.length) {
-      $('game-list').innerHTML = '<div class="lb-empty">No games on the Schedule.</div>';
-      return;
-    }
-    $('game-list').innerHTML = '';
-    games.forEach(function (g) {
-      const row = document.createElement('div');
-      row.className = 'game-row';
-      let badge = 'upcoming', badgeText = 'Upcoming';
-      if (g.final) { badge = 'final'; badgeText = 'Final'; }
-      else if (g.ourScore !== null || g.opponentScore !== null) { badge = 'live'; badgeText = 'In progress'; }
-      const dateLabel = g.date ? new Date(g.date + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' }) : 'TBD';
-      row.innerHTML =
-        '<div class="game-date">' + dateLabel + '</div>' +
-        '<div class="game-info">' +
-          '<div class="game-opponent">' + (g.homeAway === 'Away' ? '@ ' : 'vs ') + (g.opponent || 'TBD') + '</div>' +
-          '<div class="game-meta">' + (g.time || '') + (g.location ? ' • ' + g.location : '') + '</div>' +
-        '</div>' +
-        '<div class="game-status ' + badge + '">' + badgeText + '</div>';
-      row.onclick = function () { selectGame(g); };
-      $('game-list').appendChild(row);
-    });
+    // Cache the schedule so the picker still works on a cold offline open.
+    try { localStorage.setItem('uaglaxGamesCache', JSON.stringify(games)); } catch (e) {}
+    renderGames(games, false);
   } catch (err) {
-    $('game-list').innerHTML = '<div class="lb-empty">Failed to load: ' + err.message + '</div>';
+    // Offline / fetch failed — fall back to the cached schedule so the keeper
+    // can still pick (or resume) a game with no signal.
+    let cached = [];
+    try { cached = JSON.parse(localStorage.getItem('uaglaxGamesCache') || '[]'); } catch (e) {}
+    renderGames(cached, true);
   }
+}
+
+// Renders the game list. `offline` true means we're showing a cached schedule.
+// Always prepends a Resume row for the last game opened on this device so a
+// keeper who reloaded mid-game (even with no signal) can get straight back in.
+function renderGames(games, offline) {
+  const list = $('game-list');
+  list.innerHTML = '';
+  renderResumeRow();
+  if (offline) {
+    const note = document.createElement('div');
+    note.className = 'picker-offline-note';
+    note.textContent = games.length
+      ? '📡 Offline — showing the last schedule saved on this device.'
+      : '📡 Offline — no game is loaded yet on this device.';
+    list.appendChild(note);
+  }
+  if (!games.length && !offline) {
+    const empty = document.createElement('div');
+    empty.className = 'lb-empty';
+    empty.textContent = 'No games on the Schedule.';
+    list.appendChild(empty);
+    return;
+  }
+  games.forEach(function (g) {
+    const row = document.createElement('div');
+    row.className = 'game-row';
+    let badge = 'upcoming', badgeText = 'Upcoming';
+    if (g.final) { badge = 'final'; badgeText = 'Final'; }
+    else if (g.ourScore !== null || g.opponentScore !== null) { badge = 'live'; badgeText = 'In progress'; }
+    const dateLabel = g.date ? new Date(g.date + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' }) : 'TBD';
+    row.innerHTML =
+      '<div class="game-date">' + dateLabel + '</div>' +
+      '<div class="game-info">' +
+        '<div class="game-opponent">' + (g.homeAway === 'Away' ? '@ ' : 'vs ') + (g.opponent || 'TBD') + '</div>' +
+        '<div class="game-meta">' + (g.time || '') + (g.location ? ' • ' + g.location : '') + '</div>' +
+      '</div>' +
+      '<div class="game-status ' + badge + '">' + badgeText + '</div>';
+    row.onclick = function () { selectGame(g); };
+    list.appendChild(row);
+  });
+}
+
+// Prepends a highlighted "Resume" row for the last game opened on this device,
+// annotated with how many stats are still waiting to upload for it.
+function renderResumeRow() {
+  let g = null;
+  try { g = JSON.parse(localStorage.getItem('uaglaxLastGame') || 'null'); } catch (e) {}
+  if (!g || !g.recordId) return;
+  let queued = 0;
+  try { queued = JSON.parse(localStorage.getItem('uaglaxQueue::' + g.recordId) || '[]').length; } catch (e) {}
+  const row = document.createElement('div');
+  row.className = 'game-row resume-row';
+  row.innerHTML =
+    '<div class="game-date">▶</div>' +
+    '<div class="game-info">' +
+      '<div class="game-opponent">Resume ' + (g.homeAway === 'Away' ? '@ ' : 'vs ') + (g.opponent || 'TBD') + '</div>' +
+      '<div class="game-meta">' + (queued > 0
+        ? queued + ' stat' + (queued === 1 ? '' : 's') + ' waiting to upload'
+        : 'Last game on this device') + '</div>' +
+    '</div>' +
+    '<div class="game-status live">Resume</div>';
+  row.onclick = function () { selectGame(g); };
+  $('game-list').appendChild(row);
 }
 
 function selectGame(g) {
   state.game = g;
+  // Remember this game on the device so it can be resumed after a reload or
+  // reopen even with no signal (the queue is keyed by g.recordId).
+  try { localStorage.setItem('uaglaxLastGame', JSON.stringify(g)); } catch (e) {}
   // Reset per-game admin override state. Each new game requires its own
   // override decision so a keeper can't accidentally carry adminPin between
   // games.
@@ -1472,7 +1547,7 @@ async function emailCoachReport() {
       })
     });
     if (res.ok) {
-      toast('Coach Report emailed to Charles');
+      toast('Coach Report emailed to coaches');
     } else if (res.status === 401) {
       toast('Email skipped: PIN rejected');
     } else {
@@ -1632,7 +1707,16 @@ async function loadRoster() {
     const res = await fetch(API_BASE + '/lacrosse/stats/roster');
     const data = await res.json();
     state.roster = data.players || [];
-  } catch (err) { /* non-fatal */ }
+    // Cache the roster so a mid-game reload/reopen while offline can still
+    // render the player picker and attribute stats.
+    try { localStorage.setItem('uaglaxRosterCache', JSON.stringify(state.roster)); } catch (e) {}
+  } catch (err) {
+    // Offline / fetch failed — fall back to the last cached roster.
+    try {
+      const cached = localStorage.getItem('uaglaxRosterCache');
+      if (cached && (!state.roster || !state.roster.length)) state.roster = JSON.parse(cached);
+    } catch (e) { /* non-fatal */ }
+  }
 }
 
 window.addEventListener('online', function () { if (state.game) flushQueue(); });
@@ -1777,7 +1861,10 @@ async function flushQueue() {
           statType: evt.statType,
           period: evt.period,
           clock: '',
-          note: evt.note || ''
+          note: evt.note || '',
+          // True moment the stat was tapped (captured locally in logEvent),
+          // so the server records when it happened — not when it uploaded.
+          tappedAt: evt.createdAt || undefined
         })
       });
       if (res.ok) {
@@ -1956,6 +2043,56 @@ function setSyncStatus() {
   if (failed > 0) { dot.className = 'sync-dot failed'; txt.textContent = failed + ' failed (will retry)'; }
   else if (queued > 0 || state.syncing) { dot.className = 'sync-dot queued'; txt.textContent = state.syncing ? 'Syncing…' : queued + ' queued'; }
   else { dot.className = 'sync-dot'; txt.textContent = 'Synced'; }
+  updateOfflineBar();
+}
+
+// Drives the prominent offline / pending-upload banner under the topbar. Shows
+// when offline or when uploads are pending; flashes an "all synced" confirmation
+// once everything has uploaded, then hides itself.
+let _ofbSyncedTimer = null;
+function updateOfflineBar() {
+  const bar = $('offline-bar');
+  if (!bar) return;
+  const title = $('ofb-title');
+  const sub = $('ofb-sub');
+  // Only relevant once a game is loaded.
+  if (!state.game) { bar.classList.remove('show', 'synced'); bar.hidden = true; return; }
+  bar.hidden = false;
+  const online = (typeof navigator.onLine === 'boolean') ? navigator.onLine : true;
+  // The queue is the authoritative list of events not yet uploaded. (A network
+  // failure both leaves the event in the queue and flags it _failed, so we
+  // count the queue only — counting both would double up.)
+  const pending = readQueue().length;
+
+  if (!online) {
+    if (_ofbSyncedTimer) { clearTimeout(_ofbSyncedTimer); _ofbSyncedTimer = null; }
+    bar.classList.add('show'); bar.classList.remove('synced');
+    title.textContent = 'Offline — stats saving on this device';
+    sub.textContent = pending > 0
+      ? pending + ' stat' + (pending === 1 ? '' : 's') + ' will upload automatically when you reconnect.'
+      : 'Keep tracking — everything is saved locally until you reconnect.';
+    return;
+  }
+  // Online with work outstanding.
+  if (pending > 0 || state.syncing) {
+    if (_ofbSyncedTimer) { clearTimeout(_ofbSyncedTimer); _ofbSyncedTimer = null; }
+    bar.classList.add('show'); bar.classList.remove('synced');
+    title.textContent = state.syncing ? 'Uploading…' : 'Reconnected — uploading';
+    sub.textContent = pending + ' stat' + (pending === 1 ? '' : 's') + ' waiting to upload.';
+    return;
+  }
+  // Online and fully caught up. If the banner was visible, flash a confirmation.
+  if (bar.classList.contains('show') && !bar.classList.contains('synced')) {
+    bar.classList.add('synced');
+    title.textContent = 'All synced';
+    sub.textContent = 'Every stat is uploaded.';
+    if (_ofbSyncedTimer) clearTimeout(_ofbSyncedTimer);
+    _ofbSyncedTimer = setTimeout(function () {
+      bar.classList.remove('show', 'synced'); _ofbSyncedTimer = null;
+    }, 2500);
+  } else if (!bar.classList.contains('synced')) {
+    bar.classList.remove('show');
+  }
 }
 
 // ============================================================================
@@ -3385,6 +3522,21 @@ function renderReport() {
 // ============================================================================
 //   Init
 // ============================================================================
+// Register the PWA service worker so the stat keeper is precached and opens
+// even with no signal. (index.html registers the same sw.js; registering here
+// too means a keeper who opens the stat page directly still gets offline.)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function (err) {
+      console.warn('SW registration failed:', err);
+    });
+  });
+}
+
+// Keep the offline banner honest the moment connectivity flips.
+window.addEventListener('online', function () { updateOfflineBar(); if (state.game) flushQueue(); });
+window.addEventListener('offline', function () { updateOfflineBar(); });
+
 updateQuarterSegments();
 updateLockUI();
 showGamePicker();
