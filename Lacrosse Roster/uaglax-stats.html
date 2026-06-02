@@ -678,9 +678,21 @@
     validatePin(pin).then(function (v) {
       if (v.ok) {
         localStorage.setItem('uaglaxPin', pin);
+        localStorage.setItem('uaglaxPinGood', pin); // remember last-validated PIN
         gate.classList.add('hidden');
       } else if (v.status === 0) {
-        showError('Network error — check connection and retry.');
+        // Offline: can't reach the server to verify. Trust a PIN that already
+        // validated successfully on this device so the keeper can still get in
+        // and track. The server re-checks the PIN on every write, so a wrong
+        // PIN's events would be rejected when connectivity returns.
+        var good = null;
+        try { good = localStorage.getItem('uaglaxPinGood'); } catch (e) {}
+        if (good && pin === good) {
+          localStorage.setItem('uaglaxPin', pin);
+          gate.classList.add('hidden');
+        } else {
+          showError('Offline — can’t verify a new PIN. Connect once, then it works offline.');
+        }
       } else {
         showError('Wrong PIN — try again.');
         input.value = '';
@@ -699,10 +711,15 @@
     lockUI(true);
     validatePin(stored).then(function (v) {
       if (v.ok) {
+        try { localStorage.setItem('uaglaxPinGood', stored); } catch (e) {}
+        gate.classList.add('hidden');
+      } else if (v.status === 0) {
+        // Offline — trust the already-stored PIN (it validated before) so the
+        // app opens straight into use with no signal.
         gate.classList.add('hidden');
       } else {
         if (v.status === 401) {
-          try { localStorage.removeItem('uaglaxPin'); } catch (e) {}
+          try { localStorage.removeItem('uaglaxPin'); localStorage.removeItem('uaglaxPinGood'); } catch (e) {}
         }
         lockUI(false);
         input.focus();
@@ -1615,14 +1632,30 @@ async function submitPin() {
     state.pin = pin;
     state.locked = false;
     localStorage.setItem('uaglaxPin', pin);
+    localStorage.setItem('uaglaxPinGood', pin); // remember last-validated PIN
     $('pinmodal').classList.remove('show');
     $('pin-submit').disabled = false;
     updateLockUI();
     if (state.tab !== 'entry') switchTab('entry');
     toast('Unlocked');
   } catch (err) {
-    $('pin-err').textContent = 'Network error: ' + err.message;
-    $('pin-submit').disabled = false;
+    // Offline: accept a PIN that already validated on this device so the keeper
+    // can keep tracking. Writes are still PIN-checked server-side on upload.
+    let good = null;
+    try { good = localStorage.getItem('uaglaxPinGood'); } catch (e) {}
+    if (good && pin === good) {
+      state.pin = pin;
+      state.locked = false;
+      localStorage.setItem('uaglaxPin', pin);
+      $('pinmodal').classList.remove('show');
+      $('pin-submit').disabled = false;
+      updateLockUI();
+      if (state.tab !== 'entry') switchTab('entry');
+      toast('Unlocked (offline)');
+    } else {
+      $('pin-err').textContent = 'Offline — can’t verify a new PIN. Reconnect to sign in.';
+      $('pin-submit').disabled = false;
+    }
   }
 }
 
@@ -1889,7 +1922,7 @@ async function flushQueue() {
       } else if (res.status === 401) {
         // PIN issue — halt the whole queue so the keeper sees the lock UI.
         toast('PIN rejected — re-lock and unlock');
-        state.locked = true; state.pin=''; localStorage.removeItem('uaglaxPin'); updateLockUI();
+        state.locked = true; state.pin=''; localStorage.removeItem('uaglaxPin'); localStorage.removeItem('uaglaxPinGood'); updateLockUI();
         outcome = 'halt';
       } else if (res.status >= 500) {
         // Server-side transient. Leave in queue, halt loop, retry on next refresh.
