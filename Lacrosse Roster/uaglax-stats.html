@@ -1476,10 +1476,37 @@ async function startGame() {
     toast('Game started — 0-0. Live feed is on.');
     updateStartGameUI();
   } catch (err) {
-    console.error('startGame error', err);
-    toast('Network error');
-    if (btn) { btn.disabled = false; }
+    // Offline — start the game locally so the keeper can track immediately.
+    // The schedule row syncs (0-0, or the real score once goals upload) on
+    // reconnect via flushPendingStart().
+    console.warn('startGame offline — optimistic local start', err);
+    state.game.ourScore = 0;
+    state.game.opponentScore = 0;
+    try { localStorage.setItem('uaglaxPendingStart::' + state.game.recordId, '1'); } catch (e) {}
+    toast('Started offline — stats are saving; live feed syncs when you reconnect.');
+    updateStartGameUI();
+    updateOfflineBar();
   }
+}
+
+// When connectivity returns, push the deferred "game started" 0-0 to the
+// Schedule row — but only if no goals were logged offline (a goal upload sets
+// the score itself, so patching 0-0 afterward would wrongly reset it).
+async function flushPendingStart() {
+  if (!state.game) return;
+  let pending = null;
+  try { pending = localStorage.getItem('uaglaxPendingStart::' + state.game.recordId); } catch (e) {}
+  if (!pending) return;
+  const hasGoals = (state.events || []).some(function (e) { return e.statType === 'Goal' || e.statType === 'Opp Goal'; });
+  if (hasGoals) { try { localStorage.removeItem('uaglaxPendingStart::' + state.game.recordId); } catch (e) {} return; }
+  try {
+    const res = await fetch(API_BASE + '/lacrosse/schedule/' + state.game.recordId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-UAGLAX-PIN': getActivePin() },
+      body: JSON.stringify({ ourScore: 0, oppScore: 0 })
+    });
+    if (res.ok) { try { localStorage.removeItem('uaglaxPendingStart::' + state.game.recordId); } catch (e) {} }
+  } catch (e) { /* still offline — retry on next reconnect/refresh */ }
 }
 
 function updateStartGameUI() {
@@ -1729,6 +1756,7 @@ async function refresh() {
     merged.sort(function (a, b) { return (a.createdAt || '').localeCompare(b.createdAt || ''); });
     state.events = merged;
     renderAll();
+    flushPendingStart();
     flushQueue();
   } catch (err) {
     setSyncStatus();
@@ -3567,7 +3595,10 @@ if ('serviceWorker' in navigator) {
 }
 
 // Keep the offline banner honest the moment connectivity flips.
-window.addEventListener('online', function () { updateOfflineBar(); if (state.game) flushQueue(); });
+window.addEventListener('online', function () {
+  updateOfflineBar();
+  if (state.game) { flushPendingStart().finally(function () { flushQueue(); }); }
+});
 window.addEventListener('offline', function () { updateOfflineBar(); });
 
 updateQuarterSegments();
