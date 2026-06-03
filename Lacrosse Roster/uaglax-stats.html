@@ -2611,10 +2611,12 @@ function renderSummary() {
     $('val-gb').textContent = totals.gbPct + '%';
   }
 
-  renderLB('lb-scorers', byPlayer, function (p) { return p.goal * 2 + p.assist; },
+  // Sort each board by its own stat first, using the other as a tiebreaker
+  // (×1000 keeps the primary stat dominant; nobody has 1000 in a tiebreak stat).
+  renderLB('lb-scorers', byPlayer, function (p) { return p.goal * 1000 + p.assist; },
     function (p) { return { big: p.goal + 'G', small: p.assist + ' A · ' + (p.goal + p.assist) + ' Pts' }; },
     function (p) { return p.goal + p.assist === 0; }, 'No goals yet');
-  renderLB('lb-assists', byPlayer, function (p) { return p.assist * 2 + p.goal; },
+  renderLB('lb-assists', byPlayer, function (p) { return p.assist * 1000 + p.goal; },
     function (p) { return { big: p.assist + 'A', small: p.goal + ' G · ' + (p.goal + p.assist) + ' Pts' }; },
     function (p) { return p.assist === 0; }, 'No assists yet');
   renderLB('lb-gbs', byPlayer, function (p) { return p.gb; },
