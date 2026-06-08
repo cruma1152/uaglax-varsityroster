@@ -2164,13 +2164,14 @@ function updateOfflineBar() {
 
   if (!state.game) { hideChip(); return; }
 
+  // Warning-only: silent normally, red "Not Syncing" only when there's an
+  // actual problem — offline, or one or more uploads errored out. (Pending /
+  // in-flight uploads are normal and not flagged, so the chip won't get stuck.)
   const online = (typeof navigator.onLine === 'boolean') ? navigator.onLine : true;
-  const pending = readQueue().length;
   const failed = state.events.filter(function (e) { return e._failed; }).length;
 
   if (!online || failed > 0) { setChip('error', 'Not Syncing'); return; }
-  if (pending > 0 || state.syncing) { setChip('syncing', 'Syncing…'); return; }
-  hideChip(); // fully caught up → stay silent
+  hideChip(); // syncing fine → stay silent
 }
 
 // ============================================================================
