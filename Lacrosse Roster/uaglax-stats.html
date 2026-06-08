@@ -605,7 +605,7 @@
   .sync-chip.synced { color:#a8e0b3; background:rgba(63,185,80,.12); border-color:rgba(63,185,80,.35); }
   .sync-chip.syncing { color:#f0d79a; background:rgba(210,153,34,.16); border-color:rgba(210,153,34,.45); }
   .sync-chip.syncing::before { animation:sync-pulse 1s ease-in-out infinite; }
-  .sync-chip.offline { color:#f0b8b6; background:rgba(248,81,73,.16); border-color:rgba(248,81,73,.45); }
+  .sync-chip.error { color:#f0b8b6; background:rgba(248,81,73,.16); border-color:rgba(248,81,73,.45); }
   @keyframes sync-pulse { 0%,100% { opacity:1; } 50% { opacity:.25; } }
 
   /* Toast */
@@ -2147,50 +2147,30 @@ let _ofbSyncedTimer = null;
 function updateOfflineBar() {
   const bar = $('offline-bar');
   const chip = $('sync-chip');
-  const title = $('ofb-title');
-  const sub = $('ofb-sub');
+  function hideBar() { if (bar) { bar.classList.remove('show', 'synced'); bar.hidden = true; } }
   function setChip(cls, text) {
     if (!chip) return;
     chip.className = 'sync-chip ' + cls;
     chip.textContent = text;
     chip.hidden = false;
   }
-  function hideBar() { if (bar) { bar.classList.remove('show', 'synced'); bar.hidden = true; } }
+  function hideChip() { if (chip) chip.hidden = true; }
 
-  // Only relevant once a game is loaded.
-  if (!state.game) { hideBar(); if (chip) chip.hidden = true; return; }
-
-  const online = (typeof navigator.onLine === 'boolean') ? navigator.onLine : true;
-  // The queue is the authoritative list of events not yet uploaded. (A network
-  // failure both leaves the event in the queue and flags it _failed, so we
-  // count the queue only — counting both would double up.)
-  const pending = readQueue().length;
-
-  if (!online) {
-    if (_ofbSyncedTimer) { clearTimeout(_ofbSyncedTimer); _ofbSyncedTimer = null; }
-    setChip('offline', 'Offline');
-    // Offline is a sustained state, so the detailed banner is fine here — it
-    // won't flicker per-stat the way it did online.
-    if (bar) {
-      bar.hidden = false;
-      bar.classList.add('show'); bar.classList.remove('synced');
-      title.textContent = 'Offline — stats saving on this device';
-      sub.textContent = pending > 0
-        ? pending + ' stat' + (pending === 1 ? '' : 's') + ' will upload automatically when you reconnect.'
-        : 'Keep tracking — everything is saved locally until you reconnect.';
-    }
-    return;
-  }
-
-  // Online: the topbar chip carries the status, so the banner stays hidden and
-  // never shifts the page around.
+  // The old page-shifting banner is retired — the compact topbar chip carries
+  // all status now. Silent when synced; gentle amber while uploading; red
+  // "Not Syncing" only when offline or an upload failed.
   hideBar();
   if (_ofbSyncedTimer) { clearTimeout(_ofbSyncedTimer); _ofbSyncedTimer = null; }
-  if (pending > 0 || state.syncing) {
-    setChip('syncing', 'Syncing…');
-  } else {
-    setChip('synced', 'Synced');
-  }
+
+  if (!state.game) { hideChip(); return; }
+
+  const online = (typeof navigator.onLine === 'boolean') ? navigator.onLine : true;
+  const pending = readQueue().length;
+  const failed = state.events.filter(function (e) { return e._failed; }).length;
+
+  if (!online || failed > 0) { setChip('error', 'Not Syncing'); return; }
+  if (pending > 0 || state.syncing) { setChip('syncing', 'Syncing…'); return; }
+  hideChip(); // fully caught up → stay silent
 }
 
 // ============================================================================
