@@ -596,9 +596,9 @@
   #offline-bar.show { display:flex; }
   #offline-bar.synced { background:rgba(63,185,80,.10); border-bottom-color:rgba(63,185,80,.4); color:#a8e0b3; }
   .ofb-icon { font-size:18px; line-height:1; }
-  .ofb-text { flex:1; display:flex; flex-direction:column; line-height:1.2; }
-  .ofb-text strong { font-size:13px; font-weight:700; }
-  .ofb-sub { font-size:11px; opacity:.85; }
+  .ofb-text { flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.2; }
+  .ofb-text strong { font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ofb-sub { font-size:11px; opacity:.85; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
   /* Toast */
   #toast { position:fixed; bottom:60px; left:50%; transform:translateX(-50%); background:#161b22; border:1px solid #30363d; padding:12px 20px; border-radius:10px; color:#e6edf3; opacity:0; transition:opacity .2s; pointer-events:none; z-index:300; }
@@ -2166,18 +2166,13 @@ function updateOfflineBar() {
     sub.textContent = pending + ' stat' + (pending === 1 ? '' : 's') + ' waiting to upload.';
     return;
   }
-  // Online and fully caught up. If the banner was visible, flash a confirmation.
-  if (bar.classList.contains('show') && !bar.classList.contains('synced')) {
-    bar.classList.add('synced');
-    title.textContent = 'All synced';
-    sub.textContent = 'Every stat is uploaded.';
-    if (_ofbSyncedTimer) clearTimeout(_ofbSyncedTimer);
-    _ofbSyncedTimer = setTimeout(function () {
-      bar.classList.remove('show', 'synced'); _ofbSyncedTimer = null;
-    }, 2500);
-  } else if (!bar.classList.contains('synced')) {
-    bar.classList.remove('show');
-  }
+  // Online and fully caught up. Keep the bar in place as a calm, persistent
+  // confirmation so it never appears/disappears and shifts the page. (It only
+  // hides pre-game, handled by the no-game check above.)
+  if (_ofbSyncedTimer) { clearTimeout(_ofbSyncedTimer); _ofbSyncedTimer = null; }
+  bar.classList.add('show', 'synced');
+  title.textContent = 'All synced';
+  sub.textContent = 'Every stat is uploaded.';
 }
 
 // ============================================================================
